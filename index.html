@@ -144,17 +144,6 @@ async function loadData() {
 async function saveData() {
   await db.ref('/').set(appData);
 }
-
-async function saveData() {
-  try {
-    await fetch("https://script.google.com/macros/s/AKfycby8M0qwCne47EYGagWyZRl4q9u2dFssrfGfIq78thp_JpHwFq_YU8BlNXOugq98D9Edbw/exec", {
-      method: "POST",
-      body: JSON.stringify(appData)
-    });
-  } catch (e) {
-    console.error("خطا در ذخیره:", e);
-  }
-}
 function showToast(m, t) { const el = document.getElementById('toast'); el.textContent = m; el.style.background = t === 'error' ? '#dc2626' : '#059669'; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3000); }
 function genId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; }
 function openModal(title, html) { document.getElementById('modalTitle').textContent = title; document.getElementById('modalBody').innerHTML = html; document.getElementById('modalOverlay').classList.add('open'); }
