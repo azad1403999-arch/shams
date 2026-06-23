@@ -136,20 +136,61 @@ const db = firebase.database();
 let currentUser = null, currentPage = 'dashboard', appData = null;
 
 // === تابع خواندن داده با قابلیت گذشتن از تایم‌اوت ===
-async function loadData() {
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Connection Timeout')), 5000)
-  );
+// آدرس وب‌اپ گوگل اسکریپت که در مرحله قبل کپی کردید را دقیقاً اینجا بگذارید
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby71vOw43V345XoN91dd_qgT4liXtfLTVG3RyTRHFLayiKgMSEPQcISdtDTzIMpF8kplw/exec";
 
+// === تابع جدید خواندن داده از گوگل اسکریپت ===
+async function loadData() {
+  showLoading(); // نمایش لودینگ در هنگام باز شدن برنامه
+ 
   try {
-    // رقابت بین اتصال به فایربیس و تایمر ۵ ثانیه‌ای
-    const snap = await Promise.race([
-      db.ref('/').once('value'),
-      timeout
-    ]);
-    appData = snap.val() || { students: [], teachers: [], grades: [], parentCodes: [] };
-    console.log("اطلاعات با موفقیت دریافت شد");
+    // درخواست گرفتن اطلاعات (GET)
+    const response = await fetch(GOOGLE_SCRIPT_URL);
+    appData = await response.json();
+    console.log("اطلاعات با موفقیت از گوگل‌شیت دریافت شد.");
   } catch (error) {
+    console.error("خطا در بارگذاری داده‌ها (احتمالاً قطع اتصال فیلترشکن):", error);
+    // در صورت خطا، یک آرایه خالی می‌سازیم تا برنامه کرش نکند
+    appData = { students: [], teachers: [], grades: [], parentCodes: [] };
+  } finally {
+    // در هر حالتی (موفقیت یا خطا) لودینگ غیب می‌شود تا برنامه قفل نکند
+    if (typeof renderApp === 'function') {
+      renderApp();
+    }
+  }
+}
+
+// === تابع جدید ذخیره داده در گوگل اسکریپت ===
+async function savedData() {
+  showLoading(); // موقع ذخیره کردن لودینگ بیاید
+ 
+  try {
+    // ارسال اطلاعات جدید به صورت متن JSON به گوگل اسکریپت (POST)
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        "Content-Type": "text/plain"
+      },
+      body: JSON.stringify(appData)
+    });
+   
+    const result = await response.json();
+    if(result.status === "success") {
+       console.log("تغییرات با موفقیت در گوگل‌شیت همگام‌سازی شد.");
+    } else {
+       console.error("خطای سرور گوگل:", result.message);
+    }
+  } catch (error) {
+    console.error("خطا در ارسال داده به گوگل اسکریپت:", error);
+    alert("به دلیل اختلال اینترنت، ذخیره در سرور انجام نشد اما در مرورگر شما موقتاً ثبت شد.");
+  } finally {
+    // باز کردن قفل صفحه و لودینگ تحت هر شرایطی
+    if (typeof renderApp === 'function') {
+      renderApp();
+    }
+  }
+}
     console.log("فیلترینگ یا تایم‌اوت تشخیص داده شد. بارگذاری ایمن انجام شد");
     appData = { students: [], teachers: [], grades: [], parentCodes: [] };
   }
