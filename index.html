@@ -134,15 +134,16 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let currentUser = null, currentPage = 'dashboard', appData = null;
-
+// تابع خواندن داده از فایربیس
 async function loadData() {
-  try {
-    const response = await fetch("https://script.google.com/macros/s/AKfycby8M0qwCne47EYGagWyZRl4q9u2dFssrfGfIq78thp_JpHwFq_YU8BlNXOugq98D9Edbw/exec");
-    appData = await response.json();
-  } catch (e) {
-    appData = {};
-  }
+  const snap = await db.ref('/').once('value');
+  appData = snap.val() || { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
 }
+
+// تابع ذخیره داده در فایربیس
+async function saveData() {
+  await db.ref('/').set(appData);
+}}
 
 async function saveData() {
   try {
