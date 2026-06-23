@@ -136,36 +136,42 @@ const db = firebase.database();
 let currentUser = null, currentPage = 'dashboard', appData = null;
 
 // === تابع خواندن داده با قابلیت گذشتن از تایم‌اوت ===
-// آدرس وب‌اپ گوگل اسکریپت که در مرحله قبل کپی کردید را دقیقاً اینجا بگذارید
+// ==================== GOOGLE APPS SCRIPT CONNECTION ====================
+// آدرس وب‌اپ گوگل اسکریپت خود را که بعد از تایید دسترسی (Allow) گرفتید، دقیقاً اینجا بگذارید
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby71vOw43V345XoN91dd_qgT4liXtfLTVG3RyTRHFLayiKgMSEPQcISdtDTzIMpF8kplw/exec";
 
-// === تابع جدید خواندن داده از گوگل اسکریپت ===
+let currentUser = null;
+let currentPage = 'dashboard';
+let appData = { students: [], teachers: [], grades: [], parentCodes: [] };
+
+// === ۱. تابع بارگذاری کامل داده‌ها از گوگل‌شیت ===
 async function loadData() {
-  showLoading(); // نمایش لودینگ در هنگام باز شدن برنامه
+  if (typeof showLoading === 'function') showLoading();
  
   try {
-    // درخواست گرفتن اطلاعات (GET)
     const response = await fetch(GOOGLE_SCRIPT_URL);
-    appData = await response.json();
-    console.log("اطلاعات با موفقیت از گوگل‌شیت دریافت شد.");
+    const data = await response.json();
+    if (data && !data.error) {
+      appData = data;
+      console.log("اطلاعات با موفقیت از گوگل‌شیت دریافت شد.");
+    }
   } catch (error) {
-    console.error("خطا در بارگذاری داده‌ها (احتمالاً قطع اتصال فیلترشکن):", error);
-    // در صورت خطا، یک آرایه خالی می‌سازیم تا برنامه کرش نکند
+    console.error("خطا در بارگذاری داده‌ها از گوگل:", error);
+    // در صورت خطای شبکه یا فیلترینگ، ساختار پیش‌فرض را حفظ می‌کنیم تا برنامه قفل نکند
+    console.log("بارگذاری ایمن انجام شد.");
     appData = { students: [], teachers: [], grades: [], parentCodes: [] };
   } finally {
-    // در هر حالتی (موفقیت یا خطا) لودینگ غیب می‌شود تا برنامه قفل نکند
     if (typeof renderApp === 'function') {
       renderApp();
     }
   }
 }
 
-// === تابع جدید ذخیره داده در گوگل اسکریپت ===
+// === ۲. تابع ذخیره کامل داده‌ها در گوگل‌شیت ===
 async function savedData() {
-  showLoading(); // موقع ذخیره کردن لودینگ بیاید
+  if (typeof showLoading === 'function') showLoading();
  
   try {
-    // ارسال اطلاعات جدید به صورت متن JSON به گوگل اسکریپت (POST)
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       mode: "cors",
@@ -176,26 +182,20 @@ async function savedData() {
     });
    
     const result = await response.json();
-   if(result.status === "success") {
-    console.log("تغییرات با موفقیت در گوگل شیت همگام سازی شد.");
-} else {
-    console.error("خطای سرور گوگل:", result.message);
-}
+    if (result && result.status === "success") {
+       console.log("تغییرات با موفقیت در گوگل‌شیت همگام‌سازی شد.");
+    } else {
+       console.error("خطای سرور گوگل:", result ? result.message : "پاسخ نامعتبر");
+    }
   } catch (error) {
     console.error("خطا در ارسال داده به گوگل اسکریپت:", error);
     alert("به دلیل اختلال اینترنت، ذخیره در سرور انجام نشد اما در مرورگر شما موقتاً ثبت شد.");
   } finally {
-    // باز کردن قفل صفحه و لودینگ تحت هر شرایطی
     if (typeof renderApp === 'function') {
       renderApp();
     }
   }
 }
-    console.log("فیلترینگ یا تایم‌اوت تشخیص داده شد. بارگذاری ایمن انجام شد");
-    appData = { students: [], teachers: [], grades: [], parentCodes: [] };
-  }
-
-  // غیب کردن صفحه لودینگ بعد از اتمام خواندن داده‌ها
   if (typeof renderApp === 'function') {
     renderApp();
   }
