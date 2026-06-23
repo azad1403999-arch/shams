@@ -135,24 +135,42 @@ const db = firebase.database();
 
 let currentUser = null, currentPage = 'dashboard', appData = null;
 // تابع خواندن داده با قابلیت گذشتن از تایم‌اوت (ضد فیلترینگ)
-// تابع خواندن داده با قابلیت گذشتن از تایم‌اوت (ضد فیلترینگ)
 async function loadData() {
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Connection Timeout')), 5000)
-  );
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8M0qwCne47EYGagWyZRl4q9u2dFssrfGfIq78thp_JpHwFq_YU8BlNXOugq98D9Edbw/exec"; // لینک اسکریپت را اینجا قرار دهید
 
   try {
-    // رقابت بین اتصال به فایربیس و تایمر ۵ ثانیه‌ای
-    const snap = await Promise.race([
-      db.ref('/').once('value'),
-      timeout
-    ]);
-    appData = snap.val() || { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
-    console.log("اطلاعات با موفقیت دریافت شد.");
+    // تلاش اول: استفاده از گوگل اسکریپت (پراکسی)
+    const response = await fetch(SCRIPT_URL, {
+      method: "GET", // یا POST بسته به تنظیمات شما
+      mode: 'cors'
+    });
+    appData = await response.json();
+    console.log("اطلاعات با موفقیت از طریق پراکسی دریافت شد.");
   } catch (error) {
-    console.log("فیلترینگ یا تایم‌اوت تشخیص داده شد. بارگذاریِ ایمن انجام شد.");
-    appData = { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
+    console.log("خطا در دریافت از پراکسی، در حال تلاش برای اتصال مستقیم...");
+   
+    // تلاش دوم: اتصال مستقیم به فایربیس (با تایمر نجات)
+    try {
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Connection Timeout')), 5000)
+      );
+      const snap = await Promise.race([
+        db.ref('/').once('value'),
+        timeout
+      ]);
+      appData = snap.val();
+      console.log("اطلاعات با موفقیت از فایربیس دریافت شد.");
+    } catch (firebaseError) {
+      console.log("اتصال مستقیم هم ناموفق بود. بارگذاری دیتای خالی.");
+      appData = { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
+    }
   }
+ 
+  // غیب کردن صفحه لودینگ
+  if (typeof renderApp === 'function') {
+    renderApp();
+  }
+}}
  
   // غیب کردن صفحه لودینگ
   if (typeof renderApp === 'function') {
