@@ -94,7 +94,7 @@
             <div class="divider"></div>
         </div>
         <form onsubmit="handleLogin(event)">
-            <div class="form-group"><label>نقش کاربری</label><select id="loginRole" required><option value="teacher">👨‍🏫 مربی / مدیر</option><option value="parent">👨‍👩‍👧 ولی دانش‌آموز</option></select></div>
+            <div class="form-group"><label>نقش کاربری</label><select id="loginRole" onchange="document.getElementById('teacherFields').style.display=this.value==='teacher'?'block':'none'; document.getElementById('parentFields').style.display=this.value==='parent'?'block':'none';" required><option value="teacher">👨‍🏫 مربی / مدیر</option><option value="parent">👨‍👩‍👧 ولی دانش‌آموز</option></select></div>
             <div id="teacherFields"><div class="form-group"><label>نام کاربری</label><input type="text" id="tUser" placeholder="نام کاربری"></div><div class="form-group"><label>رمز عبور</label><input type="password" id="tPass" placeholder="••••••••"></div></div>
             <div id="parentFields" style="display:none;"><div class="form-group"><label>کد ورود</label><input type="text" id="pCode" placeholder="کد ۶ رقمی" maxlength="6"></div></div>
             <button type="submit" class="btn btn-gold btn-block" style="padding:12px;font-size:15px;">🔑 ورود</button>
@@ -134,7 +134,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let currentUser = null, currentPage = 'dashboard', appData = null;
-// تابع خواندن داده با قابلیت گذشتن از تایم‌اوت (ضد فیلترینگ)
+
 // تابع خواندن داده با قابلیت تایم‌اوت (ضد گیر کردن لودینگ)
 async function loadData() {
   const timeout = new Promise((_, reject) =>
@@ -152,11 +152,6 @@ async function loadData() {
     console.log("خطای اتصال فایربیس؛ بارگذاری ایمن انجام شد.");
     appData = { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
   }
- 
-  // غیب کردن صفحه لودینگ
-  if (typeof renderApp === 'function') {
-    renderApp();
-  }
 }
 
 // تابع ذخیره داده در فایربیس
@@ -165,34 +160,32 @@ async function saveData() {
     await db.ref('/').set(appData);
     console.log("اطلاعات ذخیره شد.");
   } catch (e) {
-    console.error("خطا در ذخیره:", e);
-    alert("ذخیره‌سازی با خطا مواجه شد.");
+    console.error("خطا در ذخیره سازی:", e);
+    showToast("خطا در ذخیره اطلاعات. احتمالاً اینترنت شما مسدود است.", "error");
   }
 }
-  try {
-    await db.ref('/').set(appData);
-    console.log("اطلاعات ذخیره شد.");
-  } catch (e) {
-    console.error("خطا در ذخیره:", e);
-    alert("ذخیره‌سازی با خطا مواجه شد.");
-  }
-}}
 
-async function saveData() {
-  try {
-    await db.ref('/').set(appData);
-    console.log("اطلاعات ذخیره شد.");
-  } catch (e) {
-    console.error("خطا در ذخیره سازی:", e);
-    alert("خطا در ذخیره اطلاعات. احتمالاً اینترنت شما مسدود است.");
-  }
-}async function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     await loadData();
-    if (!appData.teachers) { appData = { students: [], teachers: [{ id: 1, fn: 'مولوی محمد', ln: 'براهویی', ph: '09181111111', un: 'admin', pw: 'admin123', role: 'admin' }], classes: [], courses: [], attendance: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: { sname: 'شمس‌العلوم ایرانشهر', mname: 'مولوی محمد براهویی', year: '۱۴۰۴-۱۴۰۵' }, gradesConfig: [{ id: 1, name: 'مقدماتی', levels: 'مقدماتی ۱,مقدماتی ۲,مقدماتی ۳' }, { id: 2, name: 'متوسطه', levels: 'متوسطه ۱,متوسطه ۲' }, { id: 3, name: 'پیشرفته', levels: 'پیشرفته ۱,پیشرفته ۲,پیشرفته ۳' }] }; await saveData(); }
+    if (!appData.teachers || appData.teachers.length === 0) {
+        appData = { students: [], teachers: [{ id: 1, fn: 'مولوی محمد', ln: 'براهویی', ph: '09181111111', un: 'admin', pw: 'admin123', role: 'admin' }], classes: [], courses: [], attendance: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: { sname: 'شمس‌العلوم ایرانشهر', mname: 'مولوی محمد براهویی', year: '۱۴۰۴-۱۴۰۵' }, gradesConfig: [{ id: 1, name: 'مقدماتی', levels: 'مقدماتی ۱,مقدماتی ۲,مقدماتی ۳' }, { id: 2, name: 'متوسطه', levels: 'متوسطه ۱,متوسطه ۲' }, { id: 3, name: 'پیشرفته', levels: 'پیشرفته ۱,پیشرفته ۲,پیشرفته ۳' }] };
+        await saveData();
+    }
     const role = document.getElementById('loginRole').value;
-    if (role === 'teacher') { const u = document.getElementById('tUser').value.trim(), p = document.getElementById('tPass').value.trim(); const t = appData.teachers.find(x => x.un === u && x.pw === p); if (t) { currentUser = t; enterApp(); } else showToast('نام کاربری یا رمز عبور اشتباه است', 'error'); }
-    else { const code = document.getElementById('pCode').value.trim(); const pc = appData.parentCodes.find(x => x.code === code); if (pc) { const s = appData.students.find(x => x.id == pc.studentId); if (s) { currentUser = { role: 'parent', sid: s.id, sname: s.fn + ' ' + s.ln }; enterApp(); } else showToast('دانش‌آموز یافت نشد', 'error'); } else showToast('کد ورود نامعتبر است', 'error'); }
+    if (role === 'teacher') {
+        const u = document.getElementById('tUser').value.trim(), p = document.getElementById('tPass').value.trim();
+        const t = appData.teachers.find(x => x.un === u && x.pw === p);
+        if (t) { currentUser = t; enterApp(); } else showToast('نام کاربری یا رمز عبور اشتباه است', 'error');
+    }
+    else {
+        const code = document.getElementById('pCode').value.trim();
+        const pc = appData.parentCodes.find(x => x.code === code);
+        if (pc) {
+            const s = appData.students.find(x => x.id == pc.studentId);
+            if (s) { currentUser = { role: 'parent', sid: s.id, sname: s.fn + ' ' + s.ln }; enterApp(); } else showToast('دانش‌آموز یافت نشد', 'error');
+        } else showToast('کد ورود نامعتبر است', 'error');
+    }
 }
 
 function enterApp() {
@@ -280,6 +273,37 @@ function sendWA() { const t = document.getElementById('mText').value; const s = 
 
 function settings() { const s = appData.settings || {}; document.getElementById('content').innerHTML = `<div class="card" style="max-width:600px;margin:0 auto;"><h3>تنظیمات</h3><form onsubmit="saveSet(event)"><div class="form-group"><label>نام مدرسه</label><input id="setSN" value="${s.sname||''}" required></div><div class="form-group"><label>نام مدیر</label><input id="setMN" value="${s.mname||''}" required></div><div class="form-group"><label>سال تحصیلی</label><input id="setYR" value="${s.year||''}"></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form></div>`; }
 async function saveSet(e) { e.preventDefault(); appData.settings = { sname: document.getElementById('setSN').value, mname: document.getElementById('setMN').value, year: document.getElementById('setYR').value }; await saveData(); showToast('ذخیره شد'); }
+
+// ==================== توابع کمکی سیستم ====================
+function genId(arr) {
+    if (!arr || arr.length === 0) return 1;
+    return Math.max(...arr.map(x => x.id || 0)) + 1;
+}
+
+function openModal(title, bodyHtml) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = bodyHtml;
+    document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.style.background = type === 'error' ? 'var(--danger)' : type === 'warning' ? 'var(--warning)' : type === 'info' ? 'var(--teal)' : 'var(--success)';
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+
+// ناپدید شدن خودکار صفحه لودینگ اولیه برای نمایش فرم ورود
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        document.getElementById('splashScreen').classList.add('hide');
+    }, 1500);
+});
 </script>
 </body>
-                                                                                                  </html>
+</html>
