@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سامانه هوشمند کلاس‌های قرآنی شمس‌العلوم ایرانشهر</title>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         :root{--primary:#0d3b66;--gold:#c9a84c;--teal:#0d7377;--danger:#dc2626;--success:#059669;--warning:#d97706}
         *{margin:0;padding:0;box-sizing:border-box}
@@ -120,57 +118,39 @@
 <div class="modal-overlay" id="modalOverlay"><div class="modal-box" id="modalBox"><div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" onclick="closeModal()">✕</button></div><div class="divider"></div><div id="modalBody"></div></div></div>
 
 <script>
-// ==================== FIREBASE ====================
-const firebaseConfig = {
-    apiKey: "AIzaSyAAtGBnguZobmyT853mmjh1E_3ckXQd0Ro",
-    authDomain: "shams-al-ulum.firebaseapp.com",
-    databaseURL: "https://shams-al-ulum-default-rtdb.firebaseio.com",
-    projectId: "shams-al-ulum",
-    storageBucket: "shams-al-ulum.firebasestorage.app",
-    messagingSenderId: "218200363894",
-    appId: "1:218200363894:web:bd65cb3ffb06545a612057"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-let currentUser = null, currentPage = 'dashboard', appData = null;
-
-// === تابع خواندن داده با قابلیت گذشتن از تایم‌اوت ===
 // ==================== GOOGLE APPS SCRIPT CONNECTION ====================
-// آدرس وب‌اپ گوگل اسکریپت خود را که بعد از تایید دسترسی (Allow) گرفتید، دقیقاً اینجا بگذارید
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby71vOw43V345XoN91dd_qgT4liXtfLTVG3RyTRHFLayiKgMSEPQcISdtDTzIMpF8kplw/exec";
 
 let currentUser = null;
 let currentPage = 'dashboard';
-let appData = { students: [], teachers: [], grades: [], parentCodes: [] };
+let appData = { students: [], teachers: [], classes: [], parentCodes: [], dailyReports: [], messages: [], courses: [], gradesConfig: [], settings: {}, grades: [] };
 
 // === ۱. تابع بارگذاری کامل داده‌ها از گوگل‌شیت ===
 async function loadData() {
-  if (typeof showLoading === 'function') showLoading();
- 
   try {
     const response = await fetch(GOOGLE_SCRIPT_URL);
     const data = await response.json();
     if (data && !data.error) {
       appData = data;
+      if (!appData.students) appData.students = [];
+      if (!appData.teachers) appData.teachers = [];
+      if (!appData.classes) appData.classes = [];
+      if (!appData.parentCodes) appData.parentCodes = [];
+      if (!appData.dailyReports) appData.dailyReports = [];
+      if (!appData.messages) appData.messages = [];
+      if (!appData.courses) appData.courses = [];
+      if (!appData.grades) appData.grades = [];
       console.log("اطلاعات با موفقیت از گوگل‌شیت دریافت شد.");
     }
   } catch (error) {
     console.error("خطا در بارگذاری داده‌ها از گوگل:", error);
-    // در صورت خطای شبکه یا فیلترینگ، ساختار پیش‌فرض را حفظ می‌کنیم تا برنامه قفل نکند
-    console.log("بارگذاری ایمن انجام شد.");
-    appData = { students: [], teachers: [], grades: [], parentCodes: [] };
   } finally {
-    if (typeof renderApp === 'function') {
-      renderApp();
-    }
+    renderApp();
   }
 }
 
 // === ۲. تابع ذخیره کامل داده‌ها در گوگل‌شیت ===
-async function savedData() {
-  if (typeof showLoading === 'function') showLoading();
- 
+async function saveData() {
   try {
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
@@ -180,7 +160,7 @@ async function savedData() {
       },
       body: JSON.stringify(appData)
     });
-   
+  
     const result = await response.json();
     if (result && result.status === "success") {
        console.log("تغییرات با موفقیت در گوگل‌شیت همگام‌سازی شد.");
@@ -191,51 +171,58 @@ async function savedData() {
     console.error("خطا در ارسال داده به گوگل اسکریپت:", error);
     alert("به دلیل اختلال اینترنت، ذخیره در سرور انجام نشد اما در مرورگر شما موقتاً ثبت شد.");
   } finally {
-    if (typeof renderApp === 'function') {
-      renderApp();
-    }
-  }
-}
-  if (typeof renderApp === 'function') {
     renderApp();
   }
 }
 
-// === تابع ذخیره داده ===
-async function savedData() {
-  try {
-    await db.ref('/').set(appData);
-    console.log("اطلاعات ذخیره شد");
-  } catch (e) {
-    console.error("خطا در ذخیره:", e);
-    alert("ذخیره‌سازی با خطا مواجه شد");
+function renderApp() {
+  if (currentUser) {
+    navigate(currentPage);
   }
+}
 
-  // این دستور حتماً باید اجرا شود تا صفحه لودینگ غیب شود
-  if (typeof renderApp === 'function') {
-    renderApp();
-}        const u = document.getElementById('tUser').value.trim(), p = document.getElementById('tPass').value.trim();
+function handleLogin(event) {
+    event.preventDefault();
+    const role = document.getElementById('loginRole').value;
+    if (role === 'teacher') {
+        const u = document.getElementById('tUser').value.trim();
+        const p = document.getElementById('tPass').value.trim();
         const t = appData.teachers.find(x => x.un === u && x.pw === p);
-        if (t) { currentUser = t; enterApp(); } else showToast('نام کاربری یا رمز عبور اشتباه است', 'error');
-    }
-    else {
+        if (t) {
+            currentUser = t;
+            enterApp();
+        } else {
+            showToast('نام کاربری یا رمز عبور اشتباه است', 'error');
+        }
+    } else {
         const code = document.getElementById('pCode').value.trim();
         const pc = appData.parentCodes.find(x => x.code === code);
         if (pc) {
             const s = appData.students.find(x => x.id == pc.studentId);
-            if (s) { currentUser = { role: 'parent', sid: s.id, sname: s.fn + ' ' + s.ln }; enterApp(); } else showToast('دانش‌آموز یافت نشد', 'error');
-        } else showToast('کد ورود نامعتبر است', 'error');
+            if (s) {
+                currentUser = { role: 'parent', sid: s.id, sname: s.fn + ' ' + s.ln };
+                enterApp();
+            } else {
+                showToast('دانش‌آموز یافت نشد', 'error');
+            }
+        } else {
+            showToast('کد ورود نامعتبر است', 'error');
+        }
     }
 }
 
 function enterApp() {
-    document.getElementById('loginPage').style.display = 'none'; document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
     document.getElementById('userRoleDisplay').textContent = currentUser.role === 'admin' ? '👑 مدیر' : currentUser.role === 'teacher' ? '👨‍🏫 مربی' : '👨‍👩‍👧 ولی';
     document.getElementById('headerUserName').textContent = currentUser.role === 'parent' ? currentUser.sname : currentUser.fn + ' ' + currentUser.ln;
-    buildNav(); navigate('dashboard');
+    buildNav();
+    navigate('dashboard');
 }
 
-function handleLogout() { location.reload(); }
+function handleLogout() {
+    location.reload();
+}
 
 function buildNav() {
     const items = currentUser.role === 'parent' ? [
@@ -265,56 +252,279 @@ function dashboard() {
     document.getElementById('content').innerHTML = `<div class="dashboard-grid">${keys.map(k => `<div class="key-box" onclick="navigate('${k.p}')"><div class="key-icon">${k.e}</div><div class="key-title">${k.t}</div></div>`).join('')}</div>`;
 }
 
-function parentDash() { const reps = appData.dailyReports.filter(r => r.studentId == currentUser.sid); document.getElementById('content').innerHTML = `<div class="card text-center"><h2>${currentUser.sname}</h2></div><div class="dashboard-grid"><div class="key-box" onclick="navigate('pdaily')"><div class="key-icon">📖</div><div class="key-title">گزارش روزانه</div><div class="badge badge-blue">${reps.length} گزارش</div></div><div class="key-box" onclick="navigate('pmsg')"><div class="key-icon">📨</div><div class="key-title">پیام‌ها</div></div></div>`; }
-function parentDaily() { const reps = appData.dailyReports.filter(r => r.studentId == currentUser.sid); document.getElementById('content').innerHTML = `<div class="card"><h3>📖 گزارش روزانه ${currentUser.sname}</h3>${reps.length === 0 ? '<p>گزارشی ثبت نشده</p>' : reps.reverse().map(r => `<div class="card" style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:18px;margin-top:16px;"><h4>📅 ${r.date}</h4><p>یادگیری: ${r.learnRate}%</p><p>${r.status}</p><p>📝 ${r.homework||''}</p><p>💬 ${r.note||''}</p></div>`).join('')}</div>`; }
-function parentMsg() { const ms = appData.messages.filter(m => m.studentId == currentUser.sid); document.getElementById('content').innerHTML = `<div class="card"><h3>📨 پیام‌ها</h3>${ms.length === 0 ? '<p>پیامی نیست</p>' : ms.reverse().map(m => `<div class="card"><p>${m.text}</p><small>${m.date}</small></div>`).join('')}</div>`; }
+function parentDash() {
+    const reps = appData.dailyReports.filter(r => r.studentId == currentUser.sid);
+    document.getElementById('content').innerHTML = `<div class="card text-center"><h2>${currentUser.sname}</h2></div><div class="dashboard-grid"><div class="key-box" onclick="navigate('pdaily')"><div class="key-icon">📖</div><div class="key-title">گزارش روزانه</div><div class="badge badge-blue">${reps.length} گزارش</div></div><div class="key-box" onclick="navigate('pmsg')"><div class="key-icon">📨</div><div class="key-title">پیام‌ها</div></div></div>`;
+}
 
-function students() { const st = appData.students, pc = appData.parentCodes; document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>قرآن‌آموزان (${st.length} نفر)</h3><button class="btn btn-primary btn-sm" onclick="openStudentModal()">+ افزودن</button></div><div class="table-wrap"><table><thead><tr><th>ردیف</th><th>کد</th><th>نام</th><th>تلفن</th><th>کلاس</th><th>کد والد</th></tr></thead><tbody>${st.map((s,i)=>{const cls=appData.classes.find(c=>c.id==s.classId);const p=pc.find(x=>x.studentId==s.id);return`<tr><td>${i+1}</td><td>${s.code}</td><td>${s.fn} ${s.ln}</td><td>${s.ph}</td><td>${cls?cls.name:'-'}</td><td>${p?p.code:'ندارد'} <button class="btn btn-info btn-xs" onclick="genCode(${s.id})">🔑</button></td></tr>`;}).join('')}</tbody></table></div></div>`; }
-function openStudentModal(id) { const s = id ? appData.students.find(x => x.id == id) : null; openModal(s ? 'ویرایش' : 'افزودن', `<form onsubmit="saveStudent(event,${id||0})"><div class="form-row"><div class="form-group"><label>نام</label><input id="sfn" value="${s?.fn||''}" required></div><div class="form-group"><label>نام خانوادگی</label><input id="sln" value="${s?.ln||''}" required></div></div><div class="form-row"><div class="form-group"><label>تلفن</label><input id="sph" value="${s?.ph||''}"></div><div class="form-group"><label>کلاس</label><select id="scl"><option value="">بدون کلاس</option>${appData.classes.map(c=>`<option value="${c.id}" ${s?.classId==c.id?'selected':''}>${c.name}</option>`).join('')}</select></div></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ذخیره</button></div></form>`); }
-async function saveStudent(e, id) { e.preventDefault(); const data = { fn: document.getElementById('sfn').value, ln: document.getElementById('sln').value, ph: document.getElementById('sph').value, classId: parseInt(document.getElementById('scl').value) || 0 }; if (id) { const i = appData.students.findIndex(x => x.id == id); appData.students[i] = { ...appData.students[i], ...data }; } else { data.id = genId(appData.students); data.code = String(140200 + data.id).padStart(6, '0'); appData.students.push(data); } await saveData(); closeModal(); students(); showToast(id ? 'ویرایش شد' : 'اضافه شد'); }
-async function genCode(sid) { let code; do { code = Math.floor(100000 + Math.random() * 900000).toString(); } while (appData.parentCodes.find(x => x.code === code)); appData.parentCodes.push({ code, studentId: sid }); await saveData(); students(); showToast(`کد والدین: ${code}`, 'info'); }
+function parentDaily() {
+    const reps = appData.dailyReports.filter(r => r.studentId == currentUser.sid);
+    document.getElementById('content').innerHTML = `<div class="card"><h3>📖 گزارش روزانه ${currentUser.sname}</h3>${reps.length === 0 ? '<p>گزارشی ثبت نشده</p>' : reps.reverse().map(r => `<div class="card" style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:18px;margin-top:16px;"><h4>📅 ${r.date}</h4><p>یادگیری: ${r.learnRate}%</p><p>${r.status}</p><p>📝 ${r.homework||''}</p><p>💬 ${r.note||''}</p></div>`).join('')}</div>`;
+}
 
-function teachers() { document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>مربیان</h3><button class="btn btn-primary btn-sm" onclick="openTeacherModal()">+ افزودن</button></div><div class="table-wrap"><table><thead><tr><th>نام</th><th>تلفن</th><th>نام کاربری</th><th>نقش</th></tr></thead><tbody>${appData.teachers.map(x=>`<tr><td>${x.fn} ${x.ln}</td><td>${x.ph}</td><td>${x.un}</td><td><span class="badge ${x.role==='admin'?'badge-gold':'badge-blue'}">${x.role==='admin'?'مدیر':'مربی'}</span></td></tr>`).join('')}</tbody></table></div></div>`; }
-function openTeacherModal(id) { const t = id ? appData.teachers.find(x => x.id == id) : null; openModal(t ? 'ویرایش' : 'افزودن', `<form onsubmit="saveTeacher(event,${id||0})"><div class="form-row"><div class="form-group"><label>نام</label><input id="tfn" value="${t?.fn||''}" required></div><div class="form-group"><label>نام خانوادگی</label><input id="tln" value="${t?.ln||''}" required></div></div><div class="form-row"><div class="form-group"><label>تلفن</label><input id="tph" value="${t?.ph||''}"></div><div class="form-group"><label>نام کاربری</label><input id="tun" value="${t?.un||''}" required></div></div><div class="form-row"><div class="form-group"><label>رمز عبور</label><input id="tpw" value="${t?.pw||''}" required></div><div class="form-group"><label>نقش</label><select id="trl"><option value="teacher" ${t?.role==='teacher'?'selected':''}>مربی</option><option value="admin" ${t?.role==='admin'?'selected':''}>مدیر</option></select></div></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ذخیره</button></div></form>`); }
-async function saveTeacher(e, id) { e.preventDefault(); const d = { fn: document.getElementById('tfn').value, ln: document.getElementById('tln').value, ph: document.getElementById('tph').value, un: document.getElementById('tun').value, pw: document.getElementById('tpw').value, role: document.getElementById('trl').value }; if (id) { const i = appData.teachers.findIndex(x => x.id == id); appData.teachers[i] = { ...appData.teachers[i], ...d }; } else { d.id = genId(appData.teachers); appData.teachers.push(d); } await saveData(); closeModal(); teachers(); showToast(id ? 'ویرایش شد' : 'اضافه شد'); }
+function parentMsg() {
+    const ms = appData.messages.filter(m => m.studentId == currentUser.sid);
+    document.getElementById('content').innerHTML = `<div class="card"><h3>📨 پیام‌ها</h3>${ms.length === 0 ? '<p>پیامی نیست</p>' : ms.reverse().map(m => `<div class="card"><p>${m.text}</p><small>${m.date}</small></div>`).join('')}</div>`;
+}
 
-function classes() { document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>کلاس‌ها</h3><button class="btn btn-primary btn-sm" onclick="openClassModal()">+ ایجاد</button></div><div class="table-wrap"><table><thead><tr><th>نام</th><th>مربی</th><th>ظرفیت</th></tr></thead><tbody>${appData.classes.map(c=>{const t=appData.teachers.find(x=>x.id==c.tid);return`<tr><td>${c.name}</td><td>${t?t.fn+' '+t.ln:'-'}</td><td>${c.cap}</td></tr>`;}).join('')}</tbody></table></div></div>`; }
-function openClassModal(id) { const c = id ? appData.classes.find(x => x.id == id) : null; openModal(c ? 'ویرایش' : 'ایجاد', `<form onsubmit="saveClass(event,${id||0})"><div class="form-group"><label>نام</label><input id="cnm" value="${c?.name||''}" required></div><div class="form-group"><label>مربی</label><select id="cte">${appData.teachers.map(t=>`<option value="${t.id}" ${c?.tid==t.id?'selected':''}>${t.fn} ${t.ln}</option>`).join('')}</select></div><div class="form-group"><label>ظرفیت</label><input type="number" id="cca" value="${c?.cap||25}"></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ذخیره</button></div></form>`); }
-async function saveClass(e, id) { e.preventDefault(); const d = { name: document.getElementById('cnm').value, tid: parseInt(document.getElementById('cte').value), cap: parseInt(document.getElementById('cca').value) }; if (id) { const i = appData.classes.findIndex(x => x.id == id); appData.classes[i] = { ...appData.classes[i], ...d }; } else { d.id = genId(appData.classes); appData.classes.push(d); } await saveData(); closeModal(); classes(); showToast(id ? 'ویرایش شد' : 'ایجاد شد'); }
+function students() {
+    const st = appData.students, pc = appData.parentCodes;
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>قرآن‌آموزان (${st.length} نفر)</h3><button class="btn btn-primary btn-sm" onclick="openStudentModal()">+ افزودن</button></div><div class="table-wrap"><table><thead><tr><th>ردیف</th><th>کد</th><th>نام</th><th>تلفن</th><th>کلاس</th><th>کد والد</th></tr></thead><tbody>${st.map((s,i)=>{const cls=appData.classes.find(c=>c.id==s.classId);const p=pc.find(x=>x.studentId==s.id);return`<tr><td>${i+1}</td><td>${s.code}</td><td>${s.fn} ${s.ln}</td><td>${s.ph}</td><td>${cls?cls.name:'-'}</td><td>${p?p.code:'ندارد'} <button class="btn btn-info btn-xs" onclick="genCode(${s.id})">🔑</button></td></tr>`;}).join('')}</tbody></table></div></div>`;
+}
 
-function courses() { document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>دروس</h3><button class="btn btn-primary btn-sm" onclick="openCourseModal()">+ افزودن</button></div><div class="table-wrap"><table><thead><tr><th>نام</th><th>توضیحات</th></tr></thead><tbody>${(appData.courses||[]).map(c=>`<tr><td>${c.name}</td><td>${c.desc||''}</td></tr>`).join('')}</tbody></table></div></div>`; }
-function openCourseModal(id) { const c = id ? (appData.courses||[]).find(x => x.id == id) : null; openModal(c ? 'ویرایش' : 'افزودن', `<form onsubmit="saveCourse(event,${id||0})"><div class="form-group"><label>نام</label><input id="cnm" value="${c?.name||''}" required></div><div class="form-group"><label>توضیحات</label><textarea id="cds">${c?.desc||''}</textarea></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ذخیره</button></div></form>`); }
-async function saveCourse(e, id) { e.preventDefault(); if (!appData.courses) appData.courses = []; const d = { name: document.getElementById('cnm').value, desc: document.getElementById('cds').value }; if (id) { const i = appData.courses.findIndex(x => x.id == id); appData.courses[i] = { ...appData.courses[i], ...d }; } else { d.id = genId(appData.courses); appData.courses.push(d); } await saveData(); closeModal(); courses(); showToast(id ? 'ویرایش شد' : 'اضافه شد'); }
+function openStudentModal(id) {
+    const s = id ? appData.students.find(x => x.id == id) : null;
+    openModal(s ? 'ویرایش' : 'افزودن', `<form onsubmit="saveStudent(event,${id||0})"><div class="form-row"><div class="form-group"><label>نام</label><input id="sfn" value="${s?.fn||''}" required></div><div class="form-group"><label>نام خانوادگی</label><input id="sln" value="${s?.ln||''}" required></div></div><div class="form-row"><div class="form-group"><label>تلفن</label><input id="sph" value="${s?.ph||''}"></div><div class="form-group"><label>کلاس</label><select id="scl"><option value="">بدون کلاس</option>${appData.classes.map(c=>`<option value="${c.id}" ${s?.classId==c.id?'selected':''}>${c.name}</option>`).join('')}</select></div></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ذخیره</button></div></form>`);
+}
 
-function gradeLevels() { if (!appData.gradesConfig) appData.gradesConfig = [{ id: 1, name: 'مقدماتی', levels: 'مقدماتی ۱,مقدماتی ۲,مقدماتی ۳' }, { id: 2, name: 'متوسطه', levels: 'متوسطه ۱,متوسطه ۲' }, { id: 3, name: 'پیشرفته', levels: 'پیشرفته ۱,پیشرفته ۲,پیشرفته ۳' }]; document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>پایه‌های تحصیلی</h3><button class="btn btn-primary btn-sm" onclick="openGrp()">+ افزودن گروه</button></div>${appData.gradesConfig.map(g => { const levels = g.levels ? g.levels.split(',') : []; return `<div class="card" style="margin-bottom:10px;"><div class="flex justify-between items-center mb-3"><h4 style="color:#0d3b66;">${g.name}</h4><div class="flex gap-2"><button class="btn btn-warning btn-xs" onclick="editGrp(${g.id})">✏️</button><button class="btn btn-danger btn-xs" onclick="delGrp(${g.id})">🗑️</button></div></div><div class="flex flex-wrap gap-2 mb-3">${levels.map(l => `<span class="badge badge-gold" style="margin:2px">${l.trim()} <span style="cursor:pointer;color:red" onclick="remLev(${g.id},'${l.trim()}')">×</span></span>`).join('')}</div><div class="flex gap-2"><input type="text" id="nl_${g.id}" placeholder="پایه جدید..." style="max-width:180px;"><button class="btn btn-outline btn-sm" onclick="addLev(${g.id})">+ افزودن</button></div></div>`; }).join('')}</div>`; }
-function openGrp() { openModal('گروه جدید', `<form onsubmit="saveGrp(event)"><div class="form-group"><label>نام</label><input id="ggn" required></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ایجاد</button></div></form>`); }
-async function saveGrp(e) { e.preventDefault(); const n = document.getElementById('ggn').value.trim(); if (appData.gradesConfig.find(g => g.name === n)) { showToast('تکراری', 'warning'); return; } appData.gradesConfig.push({ id: genId(appData.gradesConfig), name: n, levels: '' }); await saveData(); closeModal(); gradeLevels(); showToast('ایجاد شد'); }
-async function editGrp(id) { const g = appData.gradesConfig.find(x => x.id == id); const n = prompt('نام جدید:', g.name); if (n && n.trim()) { g.name = n.trim(); await saveData(); gradeLevels(); showToast('ویرایش شد'); } }
-async function delGrp(id) { if (confirm('حذف؟')) { appData.gradesConfig = appData.gradesConfig.filter(g => g.id != id); await saveData(); gradeLevels(); showToast('حذف شد'); } }
-async function addLev(gid) { const inp = document.getElementById('nl_' + gid); const n = inp.value.trim(); if (!n) return; const g = appData.gradesConfig.find(x => x.id == gid); const levels = g.levels ? g.levels.split(',').map(l => l.trim()) : []; if (levels.includes(n)) { showToast('تکراری', 'warning'); return; } levels.push(n); g.levels = levels.join(','); await saveData(); gradeLevels(); showToast('اضافه شد'); }
-async function remLev(gid, levelName) { if (!confirm(`حذف "${levelName}"؟`)) return; const g = appData.gradesConfig.find(x => x.id == gid); const levels = g.levels.split(',').map(l => l.trim()).filter(l => l !== levelName); g.levels = levels.join(','); await saveData(); gradeLevels(); showToast('حذف شد'); }
+async function saveStudent(e, id) {
+    e.preventDefault();
+    const data = { fn: document.getElementById('sfn').value, ln: document.getElementById('sln').value, ph: document.getElementById('sph').value, classId: parseInt(document.getElementById('scl').value) || 0 };
+    if (id) {
+        const i = appData.students.findIndex(x => x.id == id);
+        appData.students[i] = { ...appData.students[i], ...data };
+    } else {
+        data.id = genId(appData.students);
+        data.code = String(140200 + data.id).padStart(6, '0');
+        appData.students.push(data);
+    }
+    await saveData();
+    closeModal();
+    students();
+    showToast(id ? 'ویرایش شد' : 'اضافه شد');
+}
 
-function attendance() { document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>حضور و غیاب</h3></div><form onsubmit="saveAttendance(event)"><div class="form-row"><div class="form-group"><label>دانش‌آموز</label><select id="attStudent" required>${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln}</option>`).join('')}</select></div><div class="form-group"><label>تاریخ</label><input type="date" id="attDate" required></div></div><div class="form-group"><label>وضعیت</label><select id="attStatus"><option value="present">✅ حاضر</option><option value="absent">❌ غایب</option><option value="delayed">⏰ تاخیر</option><option value="leave">📝 مرخصی</option></select></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form><div class="card"><h4>آخرین ثبت‌ها</h4><div class="table-wrap"><table><thead><tr><th>تاریخ</th><th>دانش‌آموز</th><th>وضعیت</th></tr></thead><tbody>${(appData.attendance||[]).slice(-30).reverse().map(a=>{const s=appData.students.find(x=>x.id==a.studentId);return`<tr><td>${a.date}</td><td>${s?s.fn+' '+s.ln:'-'}</td><td>${a.status==='present'?'✅ حاضر':a.status==='absent'?'❌ غایب':a.status==='delayed'?'⏰ تاخیر':'📝 مرخصی'}</td></tr>`;}).join('')}</tbody></table></div></div></div>`; }
-async function saveAttendance(e) { e.preventDefault(); if (!appData.attendance) appData.attendance = []; appData.attendance.push({ id: genId(appData.attendance), studentId: parseInt(document.getElementById('attStudent').value), date: document.getElementById('attDate').value, status: document.getElementById('attStatus').value }); await saveData(); attendance(); showToast('ثبت شد'); }
+async function genCode(sid) {
+    let code;
+    do {
+        code = Math.floor(100000 + Math.random() * 900000).toString();
+    } while (appData.parentCodes.find(x => x.code === code));
+    appData.parentCodes.push({ code, studentId: sid });
+    await saveData();
+    students();
+    showToast(`کد والدین: ${code}`, 'info');
+}
 
-function grades() { document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>ثبت نمرات</h3></div><form onsubmit="saveGrade(event)"><div class="form-row"><div class="form-group"><label>دانش‌آموز</label><select id="grdStudent" required>${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln}</option>`).join('')}</select></div><div class="form-group"><label>درس</label><select id="grdCourse">${(appData.courses||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label>نمره مستمر</label><input type="number" id="grdOral" min="0" max="20" step="0.25"></div><div class="form-group"><label>نمره کتبی</label><input type="number" id="grdWritten" min="0" max="20" step="0.25"></div></div><div class="form-row"><div class="form-group"><label>نمره عملی</label><input type="number" id="grdPrac" min="0" max="20" step="0.25"></div><div class="form-group"><label>ترم</label><select id="grdTerm"><option value="1">اول</option><option value="2">دوم</option></select></div></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form><div class="card"><h4>نمرات ثبت شده</h4><div class="table-wrap"><table><thead><tr><th>دانش‌آموز</th><th>درس</th><th>مستمر</th><th>کتبی</th><th>عملی</th><th>نهایی</th><th>نتیجه</th></tr></thead><tbody>${(appData.grades||[]).slice(-20).reverse().map(g=>{const s=appData.students.find(x=>x.id==g.studentId);const f=g.finalGrade||0;return`<tr><td>${s?s.fn+' '+s.ln:'-'}</td><td>${g.courseId}</td><td>${g.oralGrade}</td><td>${g.writtenGrade}</td><td>${g.practicalGrade}</td><td>${f}</td><td>${f>=10?'<span class="badge badge-green">قبول</span>':'<span class="badge badge-red">مردود</span>'}</td></tr>`;}).join('')}</tbody></table></div></div></div>`; }
-async function saveGrade(e) { e.preventDefault(); if (!appData.grades) appData.grades = []; const o = parseFloat(document.getElementById('grdOral').value) || 0, w = parseFloat(document.getElementById('grdWritten').value) || 0, p = parseFloat(document.getElementById('grdPrac').value) || 0; appData.grades.push({ id: genId(appData.grades), studentId: parseInt(document.getElementById('grdStudent').value), courseId: parseInt(document.getElementById('grdCourse').value) || 0, term: parseInt(document.getElementById('grdTerm').value), oralGrade: o, writtenGrade: w, practicalGrade: p, finalGrade: parseFloat(((o*0.4)+(w*0.4)+(p*0.2)).toFixed(2)) }); await saveData(); grades(); showToast('نمره ثبت شد'); }
+function teachers() {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>مربیان</h3><button class="btn btn-primary btn-sm" onclick="openTeacherModal()">+ افزودن</button></div><div class="table-wrap"><table><thead><tr><th>نام</th><th>تلفن</th><th>نام کاربری</th><th>نقش</th></tr></thead><tbody>${appData.teachers.map(x=>`<tr><td>${x.fn} ${x.ln}</td><td>${x.ph}</td><td>${x.un}</td><td><span class="badge ${x.role==='admin'?'badge-gold':'badge-blue'}">${x.role==='admin'?'مدیر':'مربی'}</span></td></tr>`).join('')}</tbody></table></div></div>`;
+}
 
-function dailyReport() { document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>📖 گزارش روزانه</h3></div><form onsubmit="saveDailyReport(event)"><div class="form-row"><div class="form-group"><label>دانش‌آموز</label><select id="drStudent" required>${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln}</option>`).join('')}</select></div><div class="form-group"><label>تاریخ</label><input type="date" id="drDate" required></div></div><div class="form-row"><div class="form-group"><label>یادگیری (%)</label><input type="number" id="drLearn" min="0" max="100"></div><div class="form-group"><label>وضعیت</label><select id="drStatus"><option>عالی</option><option>خوب</option><option>متوسط</option><option>نیاز به تلاش</option></select></div></div><div class="form-group"><label>تکالیف</label><textarea id="drHomework"></textarea></div><div class="form-group"><label>توضیحات مربی</label><textarea id="drNote"></textarea></div><button type="submit" class="btn btn-primary">📤 ثبت و ارسال</button></form><div class="card"><h4>گزارش‌های اخیر</h4><div class="table-wrap"><table><thead><tr><th>تاریخ</th><th>دانش‌آموز</th><th>یادگیری</th><th>وضعیت</th></tr></thead><tbody>${appData.dailyReports.slice(-10).reverse().map(r=>{const s=appData.students.find(x=>x.id==r.studentId);return`<tr><td>${r.date}</td><td>${s?s.fn+' '+s.ln:'-'}</td><td>${r.learnRate}%</td><td>${r.status}</td></tr>`;}).join('')}</tbody></table></div></div></div>`; }
-async function saveDailyReport(e) { e.preventDefault(); appData.dailyReports.push({ id: genId(appData.dailyReports), studentId: parseInt(document.getElementById('drStudent').value), date: document.getElementById('drDate').value, learnRate: parseInt(document.getElementById('drLearn').value) || 0, status: document.getElementById('drStatus').value, homework: document.getElementById('drHomework').value, note: document.getElementById('drNote').value }); await saveData(); showToast('گزارش ثبت شد ✅'); dailyReport(); }
+function openTeacherModal(id) {
+    const t = id ? appData.teachers.find(x => x.id == id) : null;
+    openModal(t ? 'ویرایش' : 'افزودن', `<form onsubmit="saveTeacher(event,${id||0})"><div class="form-row"><div class="form-group"><label>نام</label><input id="tfn" value="${t?.fn||''}" required></div><div class="form-group"><label>نام خانوادگی</label><input id="tln" value="${t?.ln||''}" required></div></div><div class="form-row"><div class="form-group"><label>تلفن</label><input id="tph" value="${t?.ph||''}"></div><div class="form-group"><label>نام کاربری</label><input id="tun" value="${t?.un||''}" required></div></div><div class="form-row"><div class="form-group"><label>رمز عبور</label><input id="tpw" value="${t?.pw||''}" required></div><div class="form-group"><label>نقش</label><select id="trl"><option value="teacher" ${t?.role==='teacher'?'selected':''}>مربی</option><option value="admin" ${t?.role==='admin'?'selected':''}>مدیر</option></select></div></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ذخیره</button></div></form>`);
+}
 
-function reportCard() { document.getElementById('content').innerHTML = `<div class="card"><h3>🏆 کارنامه</h3><select id="rcStudent" onchange="showReportCard()"><option value="">-- انتخاب --</option>${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln}</option>`).join('')}</select><div id="rcResult" style="margin-top:16px;"></div></div>`; }
-function showReportCard() { const sid = parseInt(document.getElementById('rcStudent').value); const s = appData.students.find(x => x.id == sid); const grd = (appData.grades||[]).filter(g => g.studentId == sid); const avg = grd.length ? (grd.reduce((a,g) => a + (g.finalGrade||0), 0) / grd.length).toFixed(2) : '-'; document.getElementById('rcResult').innerHTML = s ? `<div id="printArea" style="padding:20px;background:white;border:1px solid #e2e8f0;border-radius:12px;"><h3>کارنامه ${s.fn} ${s.ln}</h3><p>کد: ${s.code}</p><table><thead><tr><th>درس</th><th>مستمر</th><th>کتبی</th><th>عملی</th><th>نهایی</th><th>نتیجه</th></tr></thead><tbody>${grd.map(g=>`<tr><td>${g.courseId}</td><td>${g.oralGrade}</td><td>${g.writtenGrade}</td><td>${g.practicalGrade}</td><td>${g.finalGrade}</td><td>${g.finalGrade>=10?'<span class="badge badge-green">قبول</span>':'<span class="badge badge-red">مردود</span>'}</td></tr>`).join('')}</tbody></table><p><strong>معدل: ${avg}</strong></p><button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ چاپ</button></div>` : ''; }
+async function saveTeacher(e, id) {
+    e.preventDefault();
+    const d = { fn: document.getElementById('tfn').value, ln: document.getElementById('tln').value, ph: document.getElementById('tph').value, un: document.getElementById('tun').value, pw: document.getElementById('tpw').value, role: document.getElementById('trl').value };
+    if (id) {
+        const i = appData.teachers.findIndex(x => x.id == id);
+        appData.teachers[i] = { ...appData.teachers[i], ...d };
+    } else {
+        d.id = genId(appData.teachers);
+        appData.teachers.push(d);
+    }
+    await saveData();
+    closeModal();
+    teachers();
+    showToast(id ? 'ویرایش شد' : 'اضافه شد');
+}
 
-function messages() { document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>ارسال پیام</h3></div><form onsubmit="sendMsg(event)"><div class="form-row"><div class="form-group"><label>گیرنده</label><select id="mStudent">${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln} (${s.ph})</option>`).join('')}</select></div><div class="form-group"><label>نوع</label><select id="mType"><option>عمومی</option><option>حضور</option><option>نمره</option><option>اخلاقی</option></select></div></div><div class="form-group"><label>متن پیام</label><textarea id="mText" rows="3" required></textarea></div><div class="flex gap-2"><button type="submit" class="btn btn-primary">💾 ذخیره</button><button type="button" class="btn btn-success" onclick="sendSMS()">📱 پیامک</button><button type="button" class="btn btn-info" onclick="sendWA()">💬 واتساپ</button></div></form></div>`; }
-async function sendMsg(e) { e.preventDefault(); if (!appData.messages) appData.messages = []; const sid = document.getElementById('mStudent').value; const s = appData.students.find(x => x.id == sid); appData.messages.push({ id: genId(appData.messages), studentId: sid, type: document.getElementById('mType').value, text: document.getElementById('mText').value, recipient: s ? s.fn + ' ' + s.ln : '', date: new Date().toLocaleDateString('fa-IR') }); await saveData(); showToast('پیام ذخیره شد'); }
-function sendSMS() { const t = document.getElementById('mText').value; const s = appData.students.find(x => x.id == document.getElementById('mStudent').value); if (s?.ph) window.open(`sms:${s.ph}?body=${encodeURIComponent(t)}`, '_blank'); }
-function sendWA() { const t = document.getElementById('mText').value; const s = appData.students.find(x => x.id == document.getElementById('mStudent').value); if (s?.ph) { let p = s.ph.replace(/^0+/, ''); if (!p.startsWith('98')) p = '98' + p; window.open(`https://wa.me/${p}?text=${encodeURIComponent(t)}`, '_blank'); } }
+function classes() {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>کلاس‌ها</h3><button class="btn btn-primary btn-sm" onclick="openClassModal()">+ ایجاد</button></div><div class="table-wrap"><table><thead><tr><th>نام</th><th>مربی</th><th>ظرفیت</th></tr></thead><tbody>${appData.classes.map(c=>{const t=appData.teachers.find(x=>x.id==c.tid);return`<tr><td>${c.name}</td><td>${t?t.fn+' '+t.ln:'-'}</td><td>${c.cap}</td></tr>`;}).join('')}</tbody></table></div></div>`;
+}
 
-function settings() { const s = appData.settings || {}; document.getElementById('content').innerHTML = `<div class="card" style="max-width:600px;margin:0 auto;"><h3>تنظیمات</h3><form onsubmit="saveSet(event)"><div class="form-group"><label>نام مدرسه</label><input id="setSN" value="${s.sname||''}" required></div><div class="form-group"><label>نام مدیر</label><input id="setMN" value="${s.mname||''}" required></div><div class="form-group"><label>سال تحصیلی</label><input id="setYR" value="${s.year||''}"></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form></div>`; }
-async function saveSet(e) { e.preventDefault(); appData.settings = { sname: document.getElementById('setSN').value, mname: document.getElementById('setMN').value, year: document.getElementById('setYR').value }; await saveData(); showToast('ذخیره شد'); }
+function openClassModal(id) {
+    const c = id ? appData.classes.find(x => x.id == id) : null;
+    openModal(c ? 'ویرایش' : 'ایجاد', `<form onsubmit="saveClass(event,${id||0})"><div class="form-group"><label>نام</label><input id="cnm" value="${c?.name||''}" required></div><div class="form-group"><label>مربی</label><select id="cte">${appData.teachers.map(t=>`<option value="${t.id}" ${c?.tid==t.id?'selected':''}>${t.fn} ${t.ln}</option>`).join('')}</select></div><div class="form-group"><label>ظرفیت</label><input type="number" id="cca" value="${c?.cap||25}"></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ذخیره</button></div></form>`);
+}
 
-// ==================== توابع کمکی سیستم ====================
+async function saveClass(e, id) {
+    e.preventDefault();
+    const d = { name: document.getElementById('cnm').value, tid: parseInt(document.getElementById('cte').value), cap: parseInt(document.getElementById('cca').value) };
+    if (id) {
+        const i = appData.classes.findIndex(x => x.id == id);
+        appData.classes[i] = { ...appData.classes[i], ...d };
+    } else {
+        d.id = genId(appData.classes);
+        appData.classes.push(d);
+    }
+    await saveData();
+    closeModal();
+    classes();
+    showToast(id ? 'ویرایش شد' : 'ایجاد شد');
+}
+
+function courses() {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>دروس</h3><button class="btn btn-primary btn-sm" onclick="openCourseModal()">+ افزودن</button></div><div class="table-wrap"><table><thead><tr><th>نام</th><th>توضیحات</th></tr></thead><tbody>${(appData.courses||[]).map(c=>`<tr><td>${c.name}</td><td>${c.desc||''}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+function openCourseModal(id) {
+    const c = id ? (appData.courses||[]).find(x => x.id == id) : null;
+    openModal(c ? 'ویرایش' : 'افزودن', `<form onsubmit="saveCourse(event,${id||0})"><div class="form-group"><label>نام</label><input id="cnm" value="${c?.name||''}" required></div><div class="form-group"><label>توضیحات</label><textarea id="cds">${c?.desc||''}</textarea></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ذخیره</button></div></form>`);
+}
+
+async function saveCourse(e, id) {
+    e.preventDefault();
+    if (!appData.courses) appData.courses = [];
+    const d = { name: document.getElementById('cnm').value, desc: document.getElementById('cds').value };
+    if (id) {
+        const i = appData.courses.findIndex(x => x.id == id);
+        appData.courses[i] = { ...appData.courses[i], ...d };
+    } else {
+        d.id = genId(appData.courses);
+        appData.courses.push(d);
+    }
+    await saveData();
+    closeModal();
+    courses();
+    showToast(id ? 'ویرایش شد' : 'اضافه شد');
+}
+
+function gradeLevels() {
+    if (!appData.gradesConfig) appData.gradesConfig = [{ id: 1, name: 'مقدماتی', levels: 'مقدماتی ۱,مقدماتی ۲,مقدماتی ۳' }, { id: 2, name: 'متوسطه', levels: 'متوسطه ۱,متوسطه ۲' }, { id: 3, name: 'پیشرفته', levels: 'پیشرفته ۱,پیشرفته ۲,پیشرفته ۳' }];
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>پایه‌های تحصیلی</h3><button class="btn btn-primary btn-sm" onclick="openGrp()">+ افزودن گروه</button></div>${appData.gradesConfig.map(g => { const levels = g.levels ? g.levels.split(',') : []; return `<div class="card" style="margin-bottom:10px;"><div class="flex justify-between items-center mb-3"><h4 style="color:#0d3b66;">${g.name}</h4><div class="flex gap-2"><button class="btn btn-warning btn-xs" onclick="editGrp(${g.id})">✏️</button><button class="btn btn-danger btn-xs" onclick="delGrp(${g.id})">🗑️</button></div></div><div class="flex flex-wrap gap-2 mb-3">${levels.map(l => `<span class="badge badge-gold" style="margin:2px">${l.trim()} <span style="cursor:pointer;color:red" onclick="remLev(${g.id},'${l.trim()}')">×</span></span>`).join('')}</div><div class="flex gap-2"><input type="text" id="nl_${g.id}" placeholder="پایه جدید..." style="max-width:180px;"><button class="btn btn-outline btn-sm" onclick="addLev(${g.id})">+ افزودن</button></div></div>`; }).join('')}</div>`;
+}
+
+function openGrp() {
+    openModal('گروه جدید', `<form onsubmit="saveGrp(event)"><div class="form-group"><label>نام</label><input id="ggn" required></div><div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button><button type="submit" class="btn btn-primary">ایجاد</button></div></form>`);
+}
+
+async function saveGrp(e) {
+    e.preventDefault();
+    const n = document.getElementById('ggn').value.trim();
+    if (appData.gradesConfig.find(g => g.name === n)) { showToast('تکراری', 'warning'); return; }
+    appData.gradesConfig.push({ id: genId(appData.gradesConfig), name: n, levels: '' });
+    await saveData();
+    closeModal();
+    gradeLevels();
+    showToast('ایجاد شد');
+}
+
+async function editGrp(id) {
+    const g = appData.gradesConfig.find(x => x.id == id);
+    const n = prompt('نام جدید:', g.name);
+    if (n && n.trim()) { g.name = n.trim(); await saveData(); gradeLevels(); showToast('ویرایش شد'); }
+}
+
+async function delGrp(id) {
+    if (confirm('حذف؟')) { appData.gradesConfig = appData.gradesConfig.filter(g => g.id != id); await saveData(); gradeLevels(); showToast('حذف شد'); }
+}
+
+async function addLev(gid) {
+    const inp = document.getElementById('nl_' + gid);
+    const n = inp.value.trim();
+    if (!n) return;
+    const g = appData.gradesConfig.find(x => x.id == gid);
+    const levels = g.levels ? g.levels.split(',').map(l => l.trim()) : [];
+    if (levels.includes(n)) { showToast('تکراری', 'warning'); return; }
+    levels.push(n);
+    g.levels = levels.join(',');
+    await saveData();
+    gradeLevels();
+    showToast('اضافه شد');
+}
+
+async function remLev(gid, levelName) {
+    if (!confirm(`حذف "${levelName}"؟`)) return;
+    const g = appData.gradesConfig.find(x => x.id == gid);
+    const levels = g.levels.split(',').map(l => l.trim()).filter(l => l !== levelName);
+    g.levels = levels.join(',');
+    await saveData();
+    gradeLevels();
+    showToast('حذف شد');
+}
+
+function attendance() {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>حضور و غیاب</h3></div><form onsubmit="saveAttendance(event)"><div class="form-row"><div class="form-group"><label>دانش‌آموز</label><select id="attStudent" required>${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln}</option>`).join('')}</select></div><div class="form-group"><label>تاریخ</label><input type="date" id="attDate" required></div></div><div class="form-group"><label>وضعیت</label><select id="attStatus"><option value="present">✅ حاضر</option><option value="absent">❌ غایب</option><option value="delayed">⏰ تاخیر</option><option value="leave">📝 مرخصی</option></select></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form><div class="card"><h4>آخرین ثبت‌ها</h4><div class="table-wrap"><table><thead><tr><th>تاریخ</th><th>دانش‌آموز</th><th>وضعیت</th></tr></thead><tbody>${(appData.attendance||[]).slice(-30).reverse().map(a=>{const s=appData.students.find(x=>x.id==a.studentId);return`<tr><td>${a.date}</td><td>${s?s.fn+' '+s.ln:'-'}</td><td>${a.status==='present'?'✅ حاضر':a.status==='absent'?'❌ غایب':a.status==='delayed'?'⏰ تاخیر':'📝 مرخصی'}</td></tr>`;}).join('')}</tbody></table></div></div></div>`;
+}
+
+async function saveAttendance(e) {
+    e.preventDefault();
+    if (!appData.attendance) appData.attendance = [];
+    appData.attendance.push({ id: genId(appData.attendance), studentId: parseInt(document.getElementById('attStudent').value), date: document.getElementById('attDate').value, status: document.getElementById('attStatus').value });
+    await saveData();
+    attendance();
+    showToast('ثبت شد');
+}
+
+function grades() {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>ثبت نمرات</h3></div><form onsubmit="saveGrade(event)"><div class="form-row"><div class="form-group"><label>دانش‌آموز</label><select id="grdStudent" required>${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln}</option>`).join('')}</select></div><div class="form-group"><label>درس</label><select id="grdCourse">${(appData.courses||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label>نمره مستمر</label><input type="number" id="grdOral" min="0" max="20" step="0.25"></div><div class="form-group"><label>نمره کتبی</label><input type="number" id="grdWritten" min="0" max="20" step="0.25"></div></div><div class="form-row"><div class="form-group"><label>نمره عملی</label><input type="number" id="grdPrac" min="0" max="20" step="0.25"></div><div class="form-group"><label>ترم</label><select id="grdTerm"><option value="1">اول</option><option value="2">دوم</option></select></div></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form><div class="card"><h4>نمرات ثبت شده</h4><div class="table-wrap"><table><thead><tr><th>دانش‌آموز</th><th>درس</th><th>مستمر</th><th>کتبی</th><th>عملی</th><th>نهایی</th><th>نتیجه</th></tr></thead><tbody>${(appData.grades||[]).slice(-20).reverse().map(g=>{const s=appData.students.find(x=>x.id==g.studentId);const f=g.finalGrade||0;return`<tr><td>${s?s.fn+' '+s.ln:'-'}</td><td>${g.courseId}</td><td>${g.oralGrade}</td><td>${g.writtenGrade}</td><td>${g.practicalGrade}</td><td>${f}</td><td>${f>=10?'<span class="badge badge-green">قبول</span>':'<span class="badge badge-red">مردود</span>'}</td></tr>`;}).join('')}</tbody></table></div></div></div>`;
+}
+
+async function saveGrade(e) {
+    e.preventDefault();
+    if (!appData.grades) appData.grades = [];
+    const o = parseFloat(document.getElementById('grdOral').value) || 0, w = parseFloat(document.getElementById('grdWritten').value) || 0, p = parseFloat(document.getElementById('grdPrac').value) || 0;
+    appData.grades.push({ id: genId(appData.grades), studentId: parseInt(document.getElementById('grdStudent').value), courseId: parseInt(document.getElementById('grdCourse').value) || 0, term: parseInt(document.getElementById('grdTerm').value), oralGrade: o, writtenGrade: w, practicalGrade: p, finalGrade: parseFloat(((o*0.4)+(w*0.4)+(p*0.2)).toFixed(2)) });
+    await saveData();
+    grades();
+    showToast('نمره ثبت شد');
+}
+
+function dailyReport() {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>📖 گزارش روزانه</h3></div><form onsubmit="saveDailyReport(event)"><div class="form-row"><div class="form-group"><label>دانش‌آموز</label><select id="drStudent" required>${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln}</option>`).join('')}</select></div><div class="form-group"><label>تاریخ</label><input type="date" id="drDate" required></div></div><div class="form-row"><div class="form-group"><label>یادگیری (%)</label><input type="number" id="drLearn" min="0" max="100"></div><div class="form-group"><label>وضعیت</label><select id="drStatus"><option>عالی</option><option>خوب</option><option>متوسط</option><option>نیاز به تلاش</option></select></div></div><div class="form-group"><label>تکالیف</label><textarea id="drHomework"></textarea></div><div class="form-group"><label>توضیحات مربی</label><textarea id="drNote"></textarea></div><button type="submit" class="btn btn-primary">📤 ثبت و ارسال</button></form><div class="card"><h4>گزارش‌های اخیر</h4><div class="table-wrap"><table><thead><tr><th>تاریخ</th><th>دانش‌آموز</th><th>یادگیری</th><th>وضعیت</th></tr></thead><tbody>${(appData.dailyReports||[]).slice(-10).reverse().map(r=>{const s=appData.students.find(x=>x.id==r.studentId);return`<tr><td>${r.date}</td><td>${s?s.fn+' '+s.ln:'-'}</td><td>${r.learnRate}%</td><td>${r.status}</td></tr>`;}).join('')}</tbody></table></div></div></div>`;
+}
+
+async function saveDailyReport(e) {
+    e.preventDefault();
+    if (!appData.dailyReports) appData.dailyReports = [];
+    appData.dailyReports.push({ id: genId(appData.dailyReports), studentId: parseInt(document.getElementById('drStudent').value), date: document.getElementById('drDate').value, learnRate: parseInt(document.getElementById('drLearn').value) || 0, status: document.getElementById('drStatus').value, homework: document.getElementById('drHomework').value, note: document.getElementById('drNote').value });
+    await saveData();
+    showToast('گزارش ثبت شد ✅');
+    dailyReport();
+}
+
+function reportCard() {
+    document.getElementById('content').innerHTML = `<div class="card"><h3>🏆 کارنامه</h3><select id="rcStudent" onchange="showReportCard()"><option value="">-- انتخاب --</option>${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln}</option>`).join('')}</select><div id="rcResult" style="margin-top:16px;"></div></div>`;
+}
+
+function showReportCard() {
+    const sid = parseInt(document.getElementById('rcStudent').value);
+    const s = appData.students.find(x => x.id == sid);
+    const grd = (appData.grades||[]).filter(g => g.studentId == sid);
+    const avg = grd.length ? (grd.reduce((a,g) => a + (g.finalGrade||0), 0) / grd.length).toFixed(2) : '-';
+    document.getElementById('rcResult').innerHTML = s ? `<div id="printArea" style="padding:20px;background:white;border:1px solid #e2e8f0;border-radius:12px;"><h3>کارنامه ${s.fn} ${s.ln}</h3><p>کد: ${s.code}</p><table><thead><tr><th>درس</th><th>مستمر</th><th>کتبی</th><th>عملی</th><th>نهایی</th><th>نتیجه</th></tr></thead><tbody>${grd.map(g=>`<tr><td>${g.courseId}</td><td>${g.oralGrade}</td><td>${g.writtenGrade}</td><td>${g.practicalGrade}</td><td>${g.finalGrade}</td><td>${g.finalGrade>=10?'<span class="badge badge-green">قبول</span>':'<span class="badge badge-red">مردود</span>'}</td></tr>`).join('')}</tbody></table><p><strong>معدل: ${avg}</strong></p><button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ چاپ</button></div>` : '';
+}
+
+function messages() {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="card-header"><h3>ارسال پیام</h3></div><form onsubmit="sendMsg(event)"><div class="form-row"><div class="form-group"><label>گیرنده</label><select id="mStudent">${appData.students.map(s=>`<option value="${s.id}">${s.fn} ${s.ln} (${s.ph})</option>`).join('')}</select></div><div class="form-group"><label>نوع</label><select id="mType"><option>عمومی</option><option>حضور</option><option>نمره</option><option>اخلاقی</option></select></div></div><div class="form-group"><label>متن پیام</label><textarea id="mText" rows="3" required></textarea></div><div class="flex gap-2"><button type="submit" class="btn btn-primary">💾 ذخیره</button><button type="button" class="btn btn-success" onclick="sendSMS()">📱 پیامک</button><button type="button" class="btn btn-info" onclick="sendWA()">💬 واتساپ</button></div></form></div>`;
+}
+
+async function sendMsg(e) {
+    e.preventDefault();
+    if (!appData.messages) appData.messages = [];
+    const sid = document.getElementById('mStudent').value;
+    const s = appData.students.find(x => x.id == sid);
+    appData.messages.push({ id: genId(appData.messages), studentId: sid, type: document.getElementById('mType').value, text: document.getElementById('mText').value, recipient: s ? s.fn + ' ' + s.ln : '', date: new Date().toLocaleDateString('fa-IR') });
+    await saveData();
+    showToast('پیام ذخیره شد');
+}
+
+function sendSMS() {
+    const t = document.getElementById('mText').value;
+    const s = appData.students.find(x => x.id == document.getElementById('mStudent').value);
+    if (s?.ph) window.open(`sms:${s.ph}?body=${encodeURIComponent(t)}`, '_blank');
+}
+
+function sendWA() {
+    const t = document.getElementById('mText').value;
+    const s = appData.students.find(x => x.id == document.getElementById('mStudent').value);
+    if (s?.ph) { let p = s.ph.replace(/^0+/, ''); if (!p.startsWith('98')) p = '98' + p; window.open(`https://wa.me/${p}?text=${encodeURIComponent(t)}`, '_blank'); }
+}
+
+function settings() {
+    const s = appData.settings || {};
+    document.getElementById('content').innerHTML = `<div class="card" style="max-width:600px;margin:0 auto;"><h3>تنظیمات</h3><form onsubmit="saveSet(event)"><div class="form-group"><label>نام مدرسه</label><input id="setSN" value="${s.sname||''}" required></div><div class="form-group"><label>نام مدیر</label><input id="setMN" value="${s.mname||''}" required></div><div class="form-group"><label>سال تحصیلی</label><input id="setYR" value="${s.year||''}"></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form></div>`;
+}
+
+async function saveSet(e) {
+    e.preventDefault();
+    appData.settings = { sname: document.getElementById('setSN').value, mname: document.getElementById('setMN').value, year: document.getElementById('setYR').value };
+    await saveData();
+    showToast('ذخیره شد');
+}
+
 function genId(arr) {
     if (!arr || arr.length === 0) return 1;
     return Math.max(...arr.map(x => x.id || 0)) + 1;
@@ -338,8 +548,8 @@ function showToast(message, type = 'success') {
     setTimeout(() => { toast.style.display = 'none'; }, 3000);
 }
 
-// ناپدید شدن خودکار صفحه لودینگ اولیه برای نمایش فرم ورود
 window.addEventListener('DOMContentLoaded', () => {
+    loadData();
     setTimeout(() => {
         document.getElementById('splashScreen').classList.add('hide');
     }, 1500);
