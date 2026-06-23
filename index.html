@@ -136,25 +136,41 @@ const db = firebase.database();
 let currentUser = null, currentPage = 'dashboard', appData = null;
 // تابع خواندن داده از فایربیس
 async function loadData() {
-  const snap = await db.ref('/').once('value');
-  appData = snap.val() || { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
+  // تعریف تایمر ۵ ثانیه‌ای (اگر ۵ ثانیه طول کشید، فایربیس را رها کن)
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Connection Timeout')), 5000)
+  );
+
+  try {
+    // رقابت بین اتصال به فایربیس و تایمر
+    const snap = await Promise.race([
+      db.ref('/').once('value'),
+      timeout
+    ]);
+   
+    appData = snap.val() || { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
+    console.log("اطلاعات با موفقیت از فایربیس دریافت شد.");
+  } catch (error) {
+    console.log("خطا در اتصال به فایربیس (فیلترینگ). لودینگ رد شد...");
+    // حتی اگر فایربیس وصل نشد، برنامه را با دیتای خالی بالا بیاور تا صفحه ورود باز شود
+    appData = { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
+  }
+ 
+  // این دستور حتماً باید اجرا شود تا صفحه لودینگ غیب شود
+  if (typeof renderApp === 'function') {
+    renderApp();
+  }
 }
 
-// تابع ذخیره داده در فایربیس
 async function saveData() {
-  await db.ref('/').set(appData);
-}
-function showToast(m, t) { const el = document.getElementById('toast'); el.textContent = m; el.style.background = t === 'error' ? '#dc2626' : '#059669'; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3000); }
-function genId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; }
-function openModal(title, html) { document.getElementById('modalTitle').textContent = title; document.getElementById('modalBody').innerHTML = html; document.getElementById('modalOverlay').classList.add('open'); }
-function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
-
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => { document.getElementById('splashScreen').classList.add('hide'); document.getElementById('loginPage').style.display = 'flex'; setTimeout(() => document.getElementById('splashScreen').remove(), 600); }, 2500);
-    document.getElementById('loginRole').addEventListener('change', function() { document.getElementById('teacherFields').style.display = this.value === 'teacher' ? 'block' : 'none'; document.getElementById('parentFields').style.display = this.value === 'parent' ? 'block' : 'none'; });
-});
-
-async function handleLogin(e) {
+  try {
+    await db.ref('/').set(appData);
+    console.log("اطلاعات ذخیره شد.");
+  } catch (e) {
+    console.error("خطا در ذخیره سازی:", e);
+    alert("خطا در ذخیره اطلاعات. احتمالاً اینترنت شما مسدود است.");
+  }
+}async function handleLogin(e) {
     e.preventDefault();
     await loadData();
     if (!appData.teachers) { appData = { students: [], teachers: [{ id: 1, fn: 'مولوی محمد', ln: 'براهویی', ph: '09181111111', un: 'admin', pw: 'admin123', role: 'admin' }], classes: [], courses: [], attendance: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: { sname: 'شمس‌العلوم ایرانشهر', mname: 'مولوی محمد براهویی', year: '۱۴۰۴-۱۴۰۵' }, gradesConfig: [{ id: 1, name: 'مقدماتی', levels: 'مقدماتی ۱,مقدماتی ۲,مقدماتی ۳' }, { id: 2, name: 'متوسطه', levels: 'متوسطه ۱,متوسطه ۲' }, { id: 3, name: 'پیشرفته', levels: 'پیشرفته ۱,پیشرفته ۲,پیشرفته ۳' }] }; await saveData(); }
