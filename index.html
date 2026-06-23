@@ -173,7 +173,6 @@ async function savedData() {
   // این دستور حتماً باید اجرا شود تا صفحه لودینگ غیب شود
   if (typeof renderApp === 'function') {
     renderApp();
-  }
 }        const u = document.getElementById('tUser').value.trim(), p = document.getElementById('tPass').value.trim();
         const t = appData.teachers.find(x => x.un === u && x.pw === p);
         if (t) { currentUser = t; enterApp(); } else showToast('نام کاربری یا رمز عبور اشتباه است', 'error');
