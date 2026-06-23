@@ -134,27 +134,41 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let currentUser = null, currentPage = 'dashboard', appData = null;
-// تابع خواندن داده از فایربیس
+// تابع خواندن داده با قابلیت گذشتن از تایم‌اوت (ضد فیلترینگ)
 async function loadData() {
-  // تعریف تایمر ۵ ثانیه‌ای (اگر ۵ ثانیه طول کشید، فایربیس را رها کن)
   const timeout = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('Connection Timeout')), 5000)
   );
 
   try {
-    // رقابت بین اتصال به فایربیس و تایمر
+    // رقابت بین اتصال به فایربیس و تایمر ۵ ثانیه‌ای
     const snap = await Promise.race([
       db.ref('/').once('value'),
       timeout
     ]);
-   
     appData = snap.val() || { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
-    console.log("اطلاعات با موفقیت از فایربیس دریافت شد.");
+    console.log("اطلاعات با موفقیت دریافت شد.");
   } catch (error) {
-    console.log("خطا در اتصال به فایربیس (فیلترینگ). لودینگ رد شد...");
-    // حتی اگر فایربیس وصل نشد، برنامه را با دیتای خالی بالا بیاور تا صفحه ورود باز شود
+    console.log("فیلترینگ یا تایم‌اوت تشخیص داده شد. بارگذاریِ ایمن انجام شد.");
     appData = { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
   }
+ 
+  // غیب کردن صفحه لودینگ
+  if (typeof renderApp === 'function') {
+    renderApp();
+  }
+}
+
+// تابع ذخیره داده
+async function saveData() {
+  try {
+    await db.ref('/').set(appData);
+    console.log("اطلاعات ذخیره شد.");
+  } catch (e) {
+    console.error("خطا در ذخیره:", e);
+    alert("ذخیره‌سازی با خطا مواجه شد.");
+  }
+}
  
   // این دستور حتماً باید اجرا شود تا صفحه لودینگ غیب شود
   if (typeof renderApp === 'function') {
