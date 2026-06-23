@@ -135,46 +135,46 @@ const db = firebase.database();
 
 let currentUser = null, currentPage = 'dashboard', appData = null;
 
-// تابع خواندن داده با قابلیت تایم‌اوت (ضد گیر کردن لودینگ)
+// === تابع خواندن داده با قابلیت گذشتن از تایم‌اوت ===
 async function loadData() {
   const timeout = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('Connection Timeout')), 5000)
   );
 
   try {
+    // رقابت بین اتصال به فایربیس و تایمر ۵ ثانیه‌ای
     const snap = await Promise.race([
       db.ref('/').once('value'),
       timeout
     ]);
-    appData = snap.val() || { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
-    console.log("اطلاعات با موفقیت دریافت شد.");
+    appData = snap.val() || { students: [], teachers: [], grades: [], parentCodes: [] };
+    console.log("اطلاعات با موفقیت دریافت شد");
   } catch (error) {
-    console.log("خطای اتصال فایربیس؛ بارگذاری ایمن انجام شد.");
-    appData = { students: [], teachers: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: {} };
+    console.log("فیلترینگ یا تایم‌اوت تشخیص داده شد. بارگذاری ایمن انجام شد");
+    appData = { students: [], teachers: [], grades: [], parentCodes: [] };
+  }
+
+  // غیب کردن صفحه لودینگ بعد از اتمام خواندن داده‌ها
+  if (typeof renderApp === 'function') {
+    renderApp();
   }
 }
 
-// تابع ذخیره داده در فایربیس
-async function saveData() {
+// === تابع ذخیره داده ===
+async function savedData() {
   try {
     await db.ref('/').set(appData);
-    console.log("اطلاعات ذخیره شد.");
+    console.log("اطلاعات ذخیره شد");
   } catch (e) {
-    console.error("خطا در ذخیره سازی:", e);
-    showToast("خطا در ذخیره اطلاعات. احتمالاً اینترنت شما مسدود است.", "error");
+    console.error("خطا در ذخیره:", e);
+    alert("ذخیره‌سازی با خطا مواجه شد");
   }
-}
 
-async function handleLogin(e) {
-    e.preventDefault();
-    await loadData();
-    if (!appData.teachers || appData.teachers.length === 0) {
-        appData = { students: [], teachers: [{ id: 1, fn: 'مولوی محمد', ln: 'براهویی', ph: '09181111111', un: 'admin', pw: 'admin123', role: 'admin' }], classes: [], courses: [], attendance: [], grades: [], parentCodes: [], dailyReports: [], messages: [], settings: { sname: 'شمس‌العلوم ایرانشهر', mname: 'مولوی محمد براهویی', year: '۱۴۰۴-۱۴۰۵' }, gradesConfig: [{ id: 1, name: 'مقدماتی', levels: 'مقدماتی ۱,مقدماتی ۲,مقدماتی ۳' }, { id: 2, name: 'متوسطه', levels: 'متوسطه ۱,متوسطه ۲' }, { id: 3, name: 'پیشرفته', levels: 'پیشرفته ۱,پیشرفته ۲,پیشرفته ۳' }] };
-        await saveData();
-    }
-    const role = document.getElementById('loginRole').value;
-    if (role === 'teacher') {
-        const u = document.getElementById('tUser').value.trim(), p = document.getElementById('tPass').value.trim();
+  // این دستور حتماً باید اجرا شود تا صفحه لودینگ غیب شود
+  if (typeof renderApp === 'function') {
+    renderApp();
+  }
+}        const u = document.getElementById('tUser').value.trim(), p = document.getElementById('tPass').value.trim();
         const t = appData.teachers.find(x => x.un === u && x.pw === p);
         if (t) { currentUser = t; enterApp(); } else showToast('نام کاربری یا رمز عبور اشتباه است', 'error');
     }
