@@ -176,11 +176,11 @@ async function savedData() {
     });
    
     const result = await response.json();
-    if(result.status === "success") {
-       console.log("تغییرات با موفقیت در گوگل‌شیت همگام‌سازی شد.");
-    } else {
-       console.error("خطای سرور گوگل:", result.message);
-    }
+   if(result.status === "success") {
+    console.log("تغییرات با موفقیت در گوگل شیت همگام سازی شد.");
+} else {
+    console.error("خطای سرور گوگل:", result.message);
+}
   } catch (error) {
     console.error("خطا در ارسال داده به گوگل اسکریپت:", error);
     alert("به دلیل اختلال اینترنت، ذخیره در سرور انجام نشد اما در مرورگر شما موقتاً ثبت شد.");
