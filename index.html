@@ -196,7 +196,10 @@ function handleLogin(event) {
         }
     } else {
         const code = document.getElementById('pCode').value.trim();
+        // ❌ کد قبلی شما: const pc = appData.parentCodes.find(x => x.code === code);
+        // ✅ کد اصلاح شده با دو مساوی:
         const pc = appData.parentCodes.find(x => x.code == code);
+       
         if (pc) {
             const s = appData.students.find(x => x.id == pc.studentId);
             if (s) {
