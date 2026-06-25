@@ -78,7 +78,7 @@
         </div>
         <h1 style="font-size:22px;font-weight:700;color:#0d3b66;margin-top:20px;">سامانه هوشمند کلاس‌های قرآنی</h1>
         <h2 style="font-size:18px;font-weight:700;color:#c9a84c;margin-top:6px;">شمس‌العلوم ایرانشهر</h2>
-        <p style="color:#64748b;margin-top:10px;">تحت مدیریت مولوی محمد براهویی</p>
+        <p style="color:#64748b;margin-top:10px;"> مولوی محمد براهویی</p>
         <div style="margin-top:24px;display:flex;gap:12px"><span class="dot-bounce"></span><span class="dot-bounce"></span><span class="dot-bounce"></span></div>
     </div>
 
@@ -121,7 +121,8 @@
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXrstP7lhxMoJJQTXucDT0MF0MgXunQ7Vozy-7l1coyt7pxEHK6pRZasba71Ciytc4/exec";
         let currentUser = null;
         let currentPage = 'dashboard';
-        let appData = { students: [], teachers: [], classes: [], parentCodes: [], dailyReports: [], messages: [], courses: [], gradesConfig: [], settings: {}, grades: [], attendance: [] };
+        // اضافه شدن onlineClasses در کنار سایر داده‌ها
+        let appData = { students: [], teachers: [], classes: [], parentCodes: [], dailyReports: [], messages: [], courses: [], gradesConfig: [], settings: {}, grades: [], attendance: [], exams: [], examResults: [], onlineClasses: [] };
 
         // === تابع مبدل میلادی به شمسی اختصاصی ===
         function g2j(gy, gm, gd) {
@@ -171,6 +172,10 @@
                     if (!appData.courses) appData.courses = [];
                     if (!appData.grades) appData.grades = [];
                     if (!appData.attendance) appData.attendance = [];
+                    if (!appData.exams) appData.exams = [];
+                    if (!appData.examResults) appData.examResults = [];
+                    // مقداردهی اولیه متغیر کلاس آنلاین
+                    if (!appData.onlineClasses) appData.onlineClasses = [];
                     console.log("اطلاعات با موفقیت از گوگل‌شیت دریافت شد.");
                 }
             } catch (error) {
@@ -253,10 +258,13 @@
         }
 
         function buildNav() {
+            // اضافه شدن کلاس آنلاین به منوها
             const items = currentUser.role === 'parent' ? [
                 { p: 'dashboard', e: '🏠', l: 'داشبورد' },
                 { p: 'pdaily', e: '📖', l: 'گزارش روزانه' },
-                { p: 'pmsg', e: '📨', l: 'پیام‌ها' }
+                { p: 'pmsg', e: '📨', l: 'پیام‌ها' },
+                { p: 'pexams', e: '📝', l: 'آزمون‌ها' },
+                { p: 'ponlineClasses', e: '💻', l: 'کلاس آنلاین' }
             ] : [
                 { p: 'dashboard', e: '🏠', l: 'داشبورد' },
                 { p: 'students', e: '👥', l: 'قرآن‌آموزان' },
@@ -268,7 +276,9 @@
                 { p: 'grades', e: '📝', l: 'نمرات' },
                 { p: 'dailyReport', e: '📖', l: 'گزارش روزانه' },
                 { p: 'report-card', e: '🏆', l: 'کارنامه' },
-                { p: 'messages', e: '📤', l: 'پیام‌ها' }
+                { p: 'messages', e: '📤', l: 'پیام‌ها' },
+                { p: 'exams', e: '📝', l: 'آزمون‌ها' },
+                { p: 'onlineClasses', e: '💻', l: 'کلاس آنلاین' }
             ];
             if (currentUser.role === 'admin') items.push({ p: 'settings', e: '⚙️', l: 'تنظیمات' });
             items.push({ p: 'logout', e: '🚪', l: 'خروج' });
@@ -279,19 +289,22 @@
             currentPage = page;
             document.querySelectorAll('.horizontal-nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
             document.getElementById('content').innerHTML = '<p style="text-align:center;padding:30px;">در حال بارگذاری...</p>';
-            const pages = { dashboard, students, teachers, classes, courses, gradeLevels, attendance, grades, dailyReport, 'report-card': reportCard, messages, settings, pdash: parentDash, pdaily: parentDaily, pmsg: parentMsg };
+            // اضافه شدن صفحات کلاس آنلاین به روت‌ها
+            const pages = { dashboard, students, teachers, classes, courses, gradeLevels, attendance, grades, dailyReport, 'report-card': reportCard, messages, settings, pdash: parentDash, pdaily: parentDaily, pmsg: parentMsg, exams, pexams: parentExams, onlineClasses, ponlineClasses: parentOnlineClasses };
             if (pages[page]) pages[page]();
         }
 
         function dashboard() {
             if (currentUser.role === 'parent') return parentDash();
-            const keys = [{ p: 'students', e: '👥', t: 'قرآن‌آموزان' }, { p: 'teachers', e: '👨‍🏫', t: 'مربیان' }, { p: 'classes', e: '🏫', t: 'کلاس‌ها' }, { p: 'courses', e: '📚', t: 'دروس' }, { p: 'gradeLevels', e: '📊', t: 'پایه‌ها' }, { p: 'attendance', e: '📋', t: 'حضور و غیاب' }, { p: 'grades', e: '📝', t: 'ثبت نمرات' }, { p: 'dailyReport', e: '📖', t: 'گزارش روزانه' }, { p: 'report-card', e: '🏆', t: 'کارنامه' }, { p: 'messages', e: '📤', t: 'ارسال پیام' }];
+            // اضافه شدن کلید کلاس آنلاین به داشبورد مربی
+            const keys = [{ p: 'students', e: '👥', t: 'قرآن‌آموزان' }, { p: 'teachers', e: '👨‍🏫', t: 'مربیان' }, { p: 'classes', e: '🏫', t: 'کلاس‌ها' }, { p: 'courses', e: '📚', t: 'دروس' }, { p: 'gradeLevels', e: '📊', t: 'پایه‌ها' }, { p: 'attendance', e: '📋', t: 'حضور و غیاب' }, { p: 'grades', e: '📝', t: 'ثبت نمرات' }, { p: 'dailyReport', e: '📖', t: 'گزارش روزانه' }, { p: 'report-card', e: '🏆', t: 'کارنامه' }, { p: 'messages', e: '📤', t: 'ارسال پیام' }, { p: 'exams', e: '📝', t: 'آزمون آنلاین' }, { p: 'onlineClasses', e: '💻', t: 'کلاس آنلاین' }];
             document.getElementById('content').innerHTML = `<div class="dashboard-grid">${keys.map(k => `<div class="key-box" onclick="navigate('${k.p}')"><div class="key-icon">${k.e}</div><div class="key-title">${k.t}</div></div>`).join('')}</div>`;
         }
 
         function parentDash() {
             const reps = appData.dailyReports.filter(r => r.studentId == currentUser.sid);
-            document.getElementById('content').innerHTML = `<div class="card text-center"><h2>${currentUser.sname}</h2></div><div class="dashboard-grid"><div class="key-box" onclick="navigate('pdaily')"><div class="key-icon">📖</div><div class="key-title">گزارش روزانه</div><div class="badge badge-blue">${reps.length} گزارش</div></div><div class="key-box" onclick="navigate('pmsg')"><div class="key-icon">📨</div><div class="key-title">پیام‌ها</div></div></div>`;
+            // اضافه شدن کلید کلاس آنلاین در داشبورد والدین
+            document.getElementById('content').innerHTML = `<div class="card text-center"><h2>${currentUser.sname}</h2></div><div class="dashboard-grid"><div class="key-box" onclick="navigate('pdaily')"><div class="key-icon">📖</div><div class="key-title">گزارش روزانه</div><div class="badge badge-blue">${reps.length} گزارش</div></div><div class="key-box" onclick="navigate('pmsg')"><div class="key-icon">📨</div><div class="key-title">پیام‌ها</div></div><div class="key-box" onclick="navigate('pexams')"><div class="key-icon">📝</div><div class="key-title">آزمون آنلاین</div></div><div class="key-box" onclick="navigate('ponlineClasses')"><div class="key-icon">💻</div><div class="key-title">کلاس آنلاین</div></div></div>`;
         }
 
         function parentDaily() {
@@ -677,12 +690,389 @@
             document.getElementById('content').innerHTML = `<div class="card" style="max-width:600px;margin:0 auto;"><h3>تنظیمات</h3><form onsubmit="saveSet(event)"><div class="form-group"><label>نام مدرسه</label><input id="setSN" value="${s.sname||''}" required></div><div class="form-group"><label>نام مدیر</label><input id="setMN" value="${s.mname||''}" required></div><div class="form-group"><label>سال تحصیلی</label><input id="setYR" value="${s.year||''}"></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form></div>`;
         }
 
-        async function saveSet(e) {
-            e.preventDefault();
-            appData.settings = { sname: document.getElementById('setSN').value, mname: document.getElementById('setMN').value, year: document.getElementById('setYR').value };
-            await saveData();
-            showToast('ذخیره شد');
+        // ================= بخش آزمون آنلاین =================
+        function exams() {
+            document.getElementById('content').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h3>آزمون‌های آنلاین</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openExamModal()">+ ایجاد آزمون</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>عنوان آزمون</th><th>درس</th><th>تاریخ</th><th>تعداد سوال</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                            ${(appData.exams||[]).map(e => {
+                                const c = (appData.courses||[]).find(x => x.id == e.courseId);
+                                const qCount = e.questions ? e.questions.length : 0;
+                                return `<tr>
+                                    <td>${e.title}</td>
+                                    <td>${c ? c.name : '-'}</td>
+                                    <td>${e.date}</td>
+                                    <td>${qCount}</td>
+                                    <td>
+                                        <button class="btn btn-info btn-xs" onclick="manageQuestions(${e.id})">❓ سوالات</button>
+                                        <button class="btn btn-success btn-xs" onclick="viewExamResults(${e.id})">📊 نتایج</button>
+                                        <button class="btn btn-warning btn-xs" onclick="openExamModal(${e.id})">✏️ ویرایش</button>
+                                        <button class="btn btn-danger btn-xs" onclick="deleteExam(${e.id})">🗑️ حذف</button>
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                            ${(!appData.exams || appData.exams.length===0)?'<tr><td colspan="5" style="text-align:center">آزمونی ثبت نشده است</td></tr>':''}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
         }
+
+        function openExamModal(id) {
+            const e = id ? (appData.exams||[]).find(x => x.id == id) : null;
+            openModal(e ? 'ویرایش آزمون' : 'ایجاد آزمون جدید', `
+                <form onsubmit="saveExam(event, ${id||0})">
+                    <div class="form-group"><label>عنوان آزمون</label><input id="exTitle" value="${e?.title||''}" required></div>
+                    <div class="form-group"><label>درس مربوطه</label><select id="exCourse" required>
+                        ${(appData.courses||[]).map(c=>`<option value="${c.id}" ${e?.courseId==c.id?'selected':''}>${c.name}</option>`).join('')}
+                    </select></div>
+                    <div class="form-group"><label>تاریخ آزمون</label><input id="exDate" value="${e?.date||getPersianToday()}" required></div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button>
+                        <button type="submit" class="btn btn-primary">ذخیره</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        async function saveExam(ev, id) {
+            ev.preventDefault();
+            if(!appData.exams) appData.exams = [];
+            const data = {
+                title: document.getElementById('exTitle').value,
+                courseId: parseInt(document.getElementById('exCourse').value),
+                date: document.getElementById('exDate').value
+            };
+            if(id) {
+                const i = appData.exams.findIndex(x => x.id == id);
+                appData.exams[i] = {...appData.exams[i], ...data};
+            } else {
+                data.id = genId(appData.exams);
+                data.questions = [];
+                appData.exams.push(data);
+            }
+            await saveData();
+            closeModal();
+            exams();
+            showToast(id ? 'آزمون ویرایش شد' : 'آزمون جدید ایجاد شد');
+        }
+
+        async function deleteExam(id) {
+            if(confirm('آیا از حذف این آزمون و تمامی سوالات آن مطمئن هستید؟')) {
+                appData.exams = appData.exams.filter(x => x.id != id);
+                await saveData();
+                exams();
+                showToast('آزمون حذف شد', 'warning');
+            }
+        }
+
+        function manageQuestions(examId) {
+            const ex = appData.exams.find(x => x.id == examId);
+            document.getElementById('content').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h3>مدیریت سوالات: ${ex.title}</h3>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-outline btn-sm" onclick="exams()">بازگشت</button>
+                        <button class="btn btn-primary btn-sm" onclick="openQuestionModal(${examId})">+ افزودن سوال</button>
+                    </div>
+                </div>
+                ${(ex.questions||[]).map((q, i) => `
+                    <div style="border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin-bottom:10px; background:#f8fafc">
+                        <p style="font-weight:600; color:var(--primary); margin-bottom:8px;">${i+1}. ${q.text}</p>
+                        <ul style="list-style:none; margin-right:15px;">
+                            ${q.options.map((opt, j) => `
+                                <li style="margin-bottom:4px; color:${j==q.correct?'#059669':'#475569'}; font-weight:${j==q.correct?'bold':'normal'}">
+                                    ${j+1}- ${opt} ${j==q.correct?'(گزینه صحیح) ✅':''}
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <div style="margin-top:10px; text-align:left;">
+                            <button class="btn btn-danger btn-xs" onclick="deleteQuestion(${examId}, ${i})">🗑️ حذف سوال</button>
+                        </div>
+                    </div>
+                `).join('')}
+                ${(!ex.questions || ex.questions.length===0) ? '<p style="text-align:center; color:#64748b;">سوالی برای این آزمون ثبت نشده است.</p>' : ''}
+            </div>`;
+        }
+
+        function openQuestionModal(examId) {
+            openModal('افزودن سوال جدید', `
+                <form onsubmit="saveQuestion(event, ${examId})">
+                    <div class="form-group"><label>صورت سوال</label><textarea id="qText" rows="2" required></textarea></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>گزینه ۱</label><input id="qOpt0" required></div>
+                        <div class="form-group"><label>گزینه ۲</label><input id="qOpt1" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>گزینه ۳</label><input id="qOpt2" required></div>
+                        <div class="form-group"><label>گزینه ۴</label><input id="qOpt3" required></div>
+                    </div>
+                    <div class="form-group"><label>پاسخ صحیح</label>
+                        <select id="qCorrect">
+                            <option value="0">گزینه ۱</option>
+                            <option value="1">گزینه ۲</option>
+                            <option value="2">گزینه ۳</option>
+                            <option value="3">گزینه ۴</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button>
+                        <button type="submit" class="btn btn-primary">افزودن به آزمون</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        async function saveQuestion(ev, examId) {
+            ev.preventDefault();
+            const ex = appData.exams.find(x => x.id == examId);
+            if(!ex.questions) ex.questions = [];
+            ex.questions.push({
+                text: document.getElementById('qText').value,
+                options: [ document.getElementById('qOpt0').value, document.getElementById('qOpt1').value, document.getElementById('qOpt2').value, document.getElementById('qOpt3').value ],
+                correct: parseInt(document.getElementById('qCorrect').value)
+            });
+            await saveData();
+            closeModal();
+            manageQuestions(examId);
+            showToast('سوال با موفقیت اضافه شد');
+        }
+
+        async function deleteQuestion(examId, qIndex) {
+            if(confirm('آیا از حذف این سوال مطمئن هستید؟')) {
+                const ex = appData.exams.find(x => x.id == examId);
+                ex.questions.splice(qIndex, 1);
+                await saveData();
+                manageQuestions(examId);
+                showToast('سوال حذف شد', 'warning');
+            }
+        }
+
+        function viewExamResults(examId) {
+            const ex = appData.exams.find(x => x.id == examId);
+            const results = (appData.examResults||[]).filter(r => r.examId == examId);
+            document.getElementById('content').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h3>نتایج آزمون: ${ex.title}</h3>
+                    <button class="btn btn-outline btn-sm" onclick="exams()">بازگشت</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>نام قرآن‌آموز</th><th>نمره کسب شده</th><th>تاریخ شرکت در آزمون</th></tr></thead>
+                        <tbody>
+                            ${results.map(r => {
+                                const s = appData.students.find(x => x.id == r.studentId);
+                                return `<tr>
+                                    <td>${s ? s.fn + ' ' + s.ln : 'نامشخص'}</td>
+                                    <td><span class="badge ${r.score >= (ex.questions.length/2) ? 'badge-green' : 'badge-red'}">${r.score} از ${ex.questions.length}</span></td>
+                                    <td>${r.date}</td>
+                                </tr>`;
+                            }).join('')}
+                            ${results.length===0?'<tr><td colspan="3" style="text-align:center">هنوز کسی در این آزمون شرکت نکرده است</td></tr>':''}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+
+        function parentExams() {
+            document.getElementById('content').innerHTML = `<div class="card">
+            <div class="card-header"><h3>📝 آزمون‌های آنلاین</h3></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>عنوان آزمون</th><th>درس</th><th>تاریخ</th><th>وضعیت</th><th>عملیات / نتیجه</th></tr></thead>
+                    <tbody>
+                        ${(appData.exams||[]).map(e => {
+                            const c = (appData.courses||[]).find(x => x.id == e.courseId);
+                            const res = (appData.examResults||[]).find(r => r.examId == e.id && r.studentId == currentUser.sid);
+                            let status = res ? '<span class="badge badge-green">انجام شده</span>' : '<span class="badge badge-orange">در انتظار شرکت</span>';
+                            let action = res ? `<span style="font-weight:bold; color:var(--primary)">نمره: ${res.score} از ${e.questions?e.questions.length:0}</span>` : 
+                                `<button class="btn btn-primary btn-sm" onclick="takeExam(${e.id})">🚀 شروع آزمون</button>`;
+                            return `<tr>
+                                <td>${e.title}</td>
+                                <td>${c ? c.name : '-'}</td>
+                                <td>${e.date}</td>
+                                <td>${status}</td>
+                                <td>${action}</td>
+                            </tr>`;
+                        }).join('')}
+                        ${(!appData.exams || appData.exams.length===0)?'<tr><td colspan="5" style="text-align:center">آزمونی برای شما یافت نشد</td></tr>':''}
+                    </tbody>
+                </table>
+            </div></div>`;
+        }
+
+        function takeExam(examId) {
+            const ex = appData.exams.find(x => x.id == examId);
+            if(!ex.questions || ex.questions.length===0) {
+                showToast('این آزمون هنوز سوالی ندارد!', 'warning');
+                return;
+            }
+            document.getElementById('content').innerHTML = `
+            <div class="card">
+                <div class="card-header"><h3>برگه آزمون: ${ex.title}</h3></div>
+                <p style="color:#64748b; margin-bottom:20px; font-size:13px;">لطفاً با دقت به سوالات زیر پاسخ دهید. پس از زدن دکمه ثبت، نمره شما بلافاصله محاسبه می‌شود.</p>
+                <form onsubmit="submitExam(event, ${examId})">
+                    ${ex.questions.map((q, i) => `
+                        <div style="background:#f8fafc; padding:18px; border-radius:10px; margin-bottom:15px; border:1px solid #e2e8f0;">
+                            <p style="font-weight:700; margin-bottom:12px; color:var(--primary)">${i+1}. ${q.text}</p>
+                            ${q.options.map((opt, j) => `
+                                <label style="display:block; margin-bottom:10px; cursor:pointer; padding:8px; border-radius:6px; transition:background 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='transparent'">
+                                    <input type="radio" name="q${i}" value="${j}" required style="width:auto; margin-left:8px;"> ${opt}
+                                </label>
+                            `).join('')}
+                        </div>
+                    `).join('')}
+                    <div style="margin-top:24px; display:flex; gap:10px;">
+                        <button type="submit" class="btn btn-success" style="padding:10px 20px;">✅ ثبت نهایی پاسخ‌ها</button>
+                        <button type="button" class="btn btn-outline" onclick="parentExams()">انصراف</button>
+                    </div>
+                </form>
+            </div>`;
+        }
+
+        async function submitExam(ev, examId) {
+            ev.preventDefault();
+            if(!confirm('آیا از ثبت نهایی پاسخ‌های خود اطمینان دارید؟ (امکان ویرایش وجود ندارد)')) return;
+            const ex = appData.exams.find(x => x.id == examId);
+            let score = 0;
+            const answers = [];
+            ex.questions.forEach((q, i) => {
+                const selected = parseInt(document.querySelector(`input[name="q${i}"]:checked`).value);
+                answers.push(selected);
+                if(selected === q.correct) score++; 
+            });
+            if(!appData.examResults) appData.examResults = [];
+            appData.examResults.push({ id: genId(appData.examResults), examId: examId, studentId: currentUser.sid, score: score, answers: answers, date: getPersianToday() });
+            await saveData();
+            showToast('آزمون شما با موفقیت ثبت شد!', 'success');
+            parentExams();
+        }
+
+        // ================= بخش کلاس‌های آنلاین (اضافه شده) =================
+
+        function onlineClasses() {
+            document.getElementById('content').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h3>💻 کلاس‌های آنلاین</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openOnlineClassModal()">+ ایجاد جلسه جدید</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>عنوان جلسه</th><th>کلاس هدف</th><th>لینک ورود</th><th>تاریخ و زمان</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                            ${(appData.onlineClasses||[]).map(o => {
+                                const c = appData.classes.find(x => x.id == o.classId);
+                                return `<tr>
+                                    <td>${o.title}</td>
+                                    <td>${c ? c.name : 'عمومی (همه کلاس‌ها)'}</td>
+                                    <td><a href="${o.link}" target="_blank" class="btn btn-info btn-xs">🔗 ورود مربی</a></td>
+                                    <td>${o.date} - ساعت ${o.time}</td>
+                                    <td>
+                                        <button class="btn btn-warning btn-xs" onclick="openOnlineClassModal(${o.id})">✏️ ویرایش</button>
+                                        <button class="btn btn-danger btn-xs" onclick="deleteOnlineClass(${o.id})">🗑️ حذف</button>
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                            ${(!appData.onlineClasses || appData.onlineClasses.length===0)?'<tr><td colspan="5" style="text-align:center">جلسه آنلاینی ثبت نشده است</td></tr>':''}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+
+        function openOnlineClassModal(id) {
+            const o = id ? (appData.onlineClasses||[]).find(x => x.id == id) : null;
+            openModal(o ? 'ویرایش کلاس آنلاین' : 'ایجاد کلاس آنلاین جدید', `
+                <form onsubmit="saveOnlineClass(event, ${id||0})">
+                    <div class="form-group"><label>عنوان جلسه</label><input id="ocTitle" value="${o?.title||''}" required placeholder="مثال: کلاس روخوانی جلسه اول"></div>
+                    <div class="form-group"><label>کلاس هدف</label><select id="ocClass">
+                        <option value="0">عمومی (همه کلاس‌ها)</option>
+                        ${appData.classes.map(c=>`<option value="${c.id}" ${o?.classId==c.id?'selected':''}>${c.name}</option>`).join('')}
+                    </select></div>
+                    <div class="form-group"><label>لینک جلسه (اسکای‌روم، گوگل‌میت و...)</label><input type="url" id="ocLink" value="${o?.link||''}" required placeholder="https://..."></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>تاریخ برگزاری</label><input id="ocDate" value="${o?.date||getPersianToday()}" required></div>
+                        <div class="form-group"><label>ساعت برگزاری</label><input type="time" id="ocTime" value="${o?.time||''}" required></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" onclick="closeModal()">انصراف</button>
+                        <button type="submit" class="btn btn-primary">ذخیره کلاس</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        async function saveOnlineClass(ev, id) {
+            ev.preventDefault();
+            if(!appData.onlineClasses) appData.onlineClasses = [];
+            const data = {
+                title: document.getElementById('ocTitle').value,
+                classId: parseInt(document.getElementById('ocClass').value),
+                link: document.getElementById('ocLink').value,
+                date: document.getElementById('ocDate').value,
+                time: document.getElementById('ocTime').value
+            };
+            if(id) {
+                const i = appData.onlineClasses.findIndex(x => x.id == id);
+                appData.onlineClasses[i] = {...appData.onlineClasses[i], ...data};
+            } else {
+                data.id = genId(appData.onlineClasses);
+                appData.onlineClasses.push(data);
+            }
+            await saveData();
+            closeModal();
+            onlineClasses();
+            showToast(id ? 'کلاس آنلاین ویرایش شد' : 'کلاس آنلاین ایجاد شد');
+        }
+
+        async function deleteOnlineClass(id) {
+            if(confirm('آیا از حذف این جلسه آنلاین مطمئن هستید؟')) {
+                appData.onlineClasses = appData.onlineClasses.filter(x => x.id != id);
+                await saveData();
+                onlineClasses();
+                showToast('کلاس آنلاین حذف شد', 'warning');
+            }
+        }
+
+        function parentOnlineClasses() {
+            const s = appData.students.find(x => x.id == currentUser.sid);
+            const myClassId = s ? s.classId : 0;
+            // نمایش کلاس‌هایی که مخصوص کلاس این دانش‌آموز است یا عمومی هستند (classId = 0)
+            const list = (appData.onlineClasses||[]).filter(o => o.classId == 0 || o.classId == myClassId);
+
+            document.getElementById('content').innerHTML = `
+            <div class="card">
+                <div class="card-header"><h3>💻 کلاس‌های آنلاین من</h3></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>عنوان جلسه</th><th>تاریخ و زمان</th><th>لینک ورود</th></tr></thead>
+                        <tbody>
+                            ${list.map(o => {
+                                return `<tr>
+                                    <td>${o.title}</td>
+                                    <td>${o.date} - ساعت ${o.time}</td>
+                                    <td><a href="${o.link}" target="_blank" class="btn btn-success btn-sm">🚪 ورود به کلاس</a></td>
+                                </tr>`;
+                            }).join('')}
+                            ${(list.length===0)?'<tr><td colspan="3" style="text-align:center">در حال حاضر جلسه آنلاینی برای شما تعریف نشده است</td></tr>':''}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+
+        // ========================================================
 
         function genId(arr) {
             if (!arr || arr.length === 0) return 1;
