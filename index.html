@@ -1,3 +1,10 @@
+کد کامل شما را دریافت کردم. ویژگی **ارسال پیامک گروهی به تمام قرآن‌آموزان** را به شکل هوشمند به این نسخه اضافه کردم.
+### تغییرات اعمال شده:
+۱. **دکمه هوشمند در هدر:** یک دکمه با عنوان «📱 پیامک به همه» در کنار نام کاربر قرار گرفت.
+۲. **کنترل سطح دسترسی:** این دکمه به‌صورت خودکار تشخیص می‌دهد که اگر فرد وارد شده **ولی دانش‌آموز** باشد، دکمه مخفی بماند و فقط برای **مدیر و مربیان** نمایش داده شود.
+۳. **استخراج خودکار شماره‌ها:** با کلیک روی این دکمه، سیستم تمام شماره همراه‌های موجود در لیست قرآن‌آموزان (به جز موارد خالی) را جمع‌آوری کرده، با کاما جدا می‌کند و نرم‌افزار پیامک گوشی یا سیستم شما را با یک متن پیش‌فرض آماده ارسال می‌کند.
+در ادامه کد کامل و بدون حذف هیچ‌کدام از قابلیت‌های قبلی (مانند کلاس آنلاین و آزمون‌ها) تقدیم شما می‌شود:
+```html
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -107,7 +114,10 @@
                     <svg width="36" height="36" viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" fill="none" stroke="#c9a84c" stroke-width="1.5"/><rect x="60" y="50" width="80" height="100" rx="3" fill="#0d3b66" stroke="#c9a84c" stroke-width="1"/><text x="78" y="110" text-anchor="middle" font-size="26" fill="white" font-weight="bold">ش</text></svg>
                     <div><h1 style="font-size:18px;color:var(--primary);">شمس‌العلوم ایرانشهر</h1><p style="font-size:10px;color:#94a3b8;" id="userRoleDisplay"></p></div>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px;"><span id="headerUserName"></span></div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <button id="smsAllBtn" class="btn btn-info btn-sm" style="display:none;" onclick="sendSMSToAll()">📱 پیامک به همه</button>
+                    <span id="headerUserName"></span>
+                </div>
             </header>
             <nav class="horizontal-nav" id="horizontalNav"></nav>
             <main class="content" id="content"></main>
@@ -121,7 +131,6 @@
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXrstP7lhxMoJJQTXucDT0MF0MgXunQ7Vozy-7l1coyt7pxEHK6pRZasba71Ciytc4/exec";
         let currentUser = null;
         let currentPage = 'dashboard';
-        // اضافه شدن onlineClasses در کنار سایر داده‌ها
         let appData = { students: [], teachers: [], classes: [], parentCodes: [], dailyReports: [], messages: [], courses: [], gradesConfig: [], settings: {}, grades: [], attendance: [], exams: [], examResults: [], onlineClasses: [] };
 
         // === تابع مبدل میلادی به شمسی اختصاصی ===
@@ -174,7 +183,6 @@
                     if (!appData.attendance) appData.attendance = [];
                     if (!appData.exams) appData.exams = [];
                     if (!appData.examResults) appData.examResults = [];
-                    // مقداردهی اولیه متغیر کلاس آنلاین
                     if (!appData.onlineClasses) appData.onlineClasses = [];
                     console.log("اطلاعات با موفقیت از گوگل‌شیت دریافت شد.");
                 }
@@ -249,6 +257,14 @@
             document.getElementById('mainApp').style.display = 'block';
             document.getElementById('userRoleDisplay').textContent = currentUser.role === 'admin' ? '👑 مدیر' : currentUser.role === 'teacher' ? '👨‍🏫 مربی' : '👨‍👩‍👧 ولی';
             document.getElementById('headerUserName').textContent = currentUser.role === 'parent' ? currentUser.sname : currentUser.fn + ' ' + currentUser.ln;
+            
+            // مدیریت نمایش دکمه پیامک گروهی (عدم نمایش برای والدین)
+            if (currentUser.role === 'parent') {
+                document.getElementById('smsAllBtn').style.display = 'none';
+            } else {
+                document.getElementById('smsAllBtn').style.display = 'inline-flex';
+            }
+
             buildNav();
             navigate('dashboard');
         }
@@ -258,7 +274,6 @@
         }
 
         function buildNav() {
-            // اضافه شدن کلاس آنلاین به منوها
             const items = currentUser.role === 'parent' ? [
                 { p: 'dashboard', e: '🏠', l: 'داشبورد' },
                 { p: 'pdaily', e: '📖', l: 'گزارش روزانه' },
@@ -289,21 +304,18 @@
             currentPage = page;
             document.querySelectorAll('.horizontal-nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
             document.getElementById('content').innerHTML = '<p style="text-align:center;padding:30px;">در حال بارگذاری...</p>';
-            // اضافه شدن صفحات کلاس آنلاین به روت‌ها
             const pages = { dashboard, students, teachers, classes, courses, gradeLevels, attendance, grades, dailyReport, 'report-card': reportCard, messages, settings, pdash: parentDash, pdaily: parentDaily, pmsg: parentMsg, exams, pexams: parentExams, onlineClasses, ponlineClasses: parentOnlineClasses };
             if (pages[page]) pages[page]();
         }
 
         function dashboard() {
             if (currentUser.role === 'parent') return parentDash();
-            // اضافه شدن کلید کلاس آنلاین به داشبورد مربی
             const keys = [{ p: 'students', e: '👥', t: 'قرآن‌آموزان' }, { p: 'teachers', e: '👨‍🏫', t: 'مربیان' }, { p: 'classes', e: '🏫', t: 'کلاس‌ها' }, { p: 'courses', e: '📚', t: 'دروس' }, { p: 'gradeLevels', e: '📊', t: 'پایه‌ها' }, { p: 'attendance', e: '📋', t: 'حضور و غیاب' }, { p: 'grades', e: '📝', t: 'ثبت نمرات' }, { p: 'dailyReport', e: '📖', t: 'گزارش روزانه' }, { p: 'report-card', e: '🏆', t: 'کارنامه' }, { p: 'messages', e: '📤', t: 'ارسال پیام' }, { p: 'exams', e: '📝', t: 'آزمون آنلاین' }, { p: 'onlineClasses', e: '💻', t: 'کلاس آنلاین' }];
             document.getElementById('content').innerHTML = `<div class="dashboard-grid">${keys.map(k => `<div class="key-box" onclick="navigate('${k.p}')"><div class="key-icon">${k.e}</div><div class="key-title">${k.t}</div></div>`).join('')}</div>`;
         }
 
         function parentDash() {
             const reps = appData.dailyReports.filter(r => r.studentId == currentUser.sid);
-            // اضافه شدن کلید کلاس آنلاین در داشبورد والدین
             document.getElementById('content').innerHTML = `<div class="card text-center"><h2>${currentUser.sname}</h2></div><div class="dashboard-grid"><div class="key-box" onclick="navigate('pdaily')"><div class="key-icon">📖</div><div class="key-title">گزارش روزانه</div><div class="badge badge-blue">${reps.length} گزارش</div></div><div class="key-box" onclick="navigate('pmsg')"><div class="key-icon">📨</div><div class="key-title">پیام‌ها</div></div><div class="key-box" onclick="navigate('pexams')"><div class="key-icon">📝</div><div class="key-title">آزمون آنلاین</div></div><div class="key-box" onclick="navigate('ponlineClasses')"><div class="key-icon">💻</div><div class="key-title">کلاس آنلاین</div></div></div>`;
         }
 
@@ -685,6 +697,21 @@
             }
         }
 
+        // تابع ارسال پیامک گروهی به تمامی قرآن‌آموزان
+        function sendSMSToAll() {
+            if (!appData.students || appData.students.length === 0) {
+                showToast('هیچ قرآن‌آموزی در سامانه یافت نشد', 'warning');
+                return;
+            }
+            const phones = appData.students.map(s => s.ph).filter(ph => ph && ph.trim() !== "");
+            if (phones.length === 0) {
+                showToast('شماره تلفنی برای ارسال پیامک یافت نشد', 'warning');
+                return;
+            }
+            const url = `sms:${phones.join(',')}?body=${encodeURIComponent('سلام و احترام\nقرآن‌آموز گرامی، ')}`;
+            window.open(url, '_blank');
+        }
+
         function settings() {
             const s = appData.settings || {};
             document.getElementById('content').innerHTML = `<div class="card" style="max-width:600px;margin:0 auto;"><h3>تنظیمات</h3><form onsubmit="saveSet(event)"><div class="form-group"><label>نام مدرسه</label><input id="setSN" value="${s.sname||''}" required></div><div class="form-group"><label>نام مدیر</label><input id="setMN" value="${s.mname||''}" required></div><div class="form-group"><label>سال تحصیلی</label><input id="setYR" value="${s.year||''}"></div><button type="submit" class="btn btn-primary">💾 ذخیره</button></form></div>`;
@@ -958,8 +985,7 @@
             parentExams();
         }
 
-        // ================= بخش کلاس‌های آنلاین (اضافه شده) =================
-
+        // ================= بخش کلاس‌های آنلاین =================
         function onlineClasses() {
             document.getElementById('content').innerHTML = `
             <div class="card">
@@ -1048,7 +1074,6 @@
         function parentOnlineClasses() {
             const s = appData.students.find(x => x.id == currentUser.sid);
             const myClassId = s ? s.classId : 0;
-            // نمایش کلاس‌هایی که مخصوص کلاس این دانش‌آموز است یا عمومی هستند (classId = 0)
             const list = (appData.onlineClasses||[]).filter(o => o.classId == 0 || o.classId == myClassId);
 
             document.getElementById('content').innerHTML = `
@@ -1104,3 +1129,5 @@
     </script>
 </body>
 </html>
+
+```
